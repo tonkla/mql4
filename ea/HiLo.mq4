@@ -14,8 +14,8 @@ input int mid       = 0;
 input int gap       = 0;
 input int sl        = 0;
 input int tp        = 0;
-input int slsum     = 0;
-input int tpsum     = 0;
+input double slsum  = 0;
+input double tpsum  = 0;
 
 int buy_tickets[];
 int sell_tickets[];
