@@ -82,7 +82,7 @@ void open() {
                     ? lots
                     : Bid > sell_nearest_price
                       ? NormalizeDouble(ArraySize(sell_tickets) * inc + lots, 2)
-                      : lots;;
+                      : lots;
     _int = OrderSend(Symbol(), OP_SELL, _lots, Bid, 3, 0, 0, NULL, magic, 0);
   }
 }

@@ -90,7 +90,7 @@ void close() {
         if (OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
       }
     }
-    if (ma_m0 > ma_m1) {
+    else if (ma_m0 > ma_m1) {
       for (_int = 0; _int < ArraySize(sell_tickets); _int++) {
         if (!OrderSelect(sell_tickets[_int], SELECT_BY_TICKET)) continue;
         if (OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
@@ -106,7 +106,7 @@ void close() {
         if (OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
       }
     }
-    if (Ask < ma_l0 - _tp) {
+    else if (Ask < ma_l0 - _tp) {
       for (_int = 0; _int < ArraySize(sell_tickets); _int++) {
         if (!OrderSelect(sell_tickets[_int], SELECT_BY_TICKET)) continue;
         if (OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
