@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.0"
+#property version   "1.1"
 #property strict
 
 input string secret = "";
@@ -10,7 +10,6 @@ input double inc    = 0;
 input int tf        = 0;
 input int period    = 0;
 input int maxord    = 0;
-input int mid       = 0;
 input int gap       = 0;
 input int sl        = 0;
 input int tp        = 0;
@@ -26,7 +25,6 @@ double buy_nearest_price;
 double sell_nearest_price;
 double pl;
 double ma_h0, ma_l0, ma_m0, ma_m1;
-double hl_m, hl_g;
 
 
 int OnInit() {
@@ -77,65 +75,51 @@ void get_vars() {
   ma_l0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
   ma_m0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   ma_m1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
-
-  hl_m = (ma_h0 - ma_l0) / (100 / mid);
-  hl_g = (ma_h0 - ma_l0) / (100 / gap);
 }
 
 void close() {
   if (sl > 0) {
-    if (ma_m0 < ma_m1) {
-      for (_int = 0; _int < ArraySize(buy_tickets); _int++) {
-        if (!OrderSelect(buy_tickets[_int], SELECT_BY_TICKET)) continue;
-        if (OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
-      }
-    }
-    else if (ma_m0 > ma_m1) {
-      for (_int = 0; _int < ArraySize(sell_tickets); _int++) {
-        if (!OrderSelect(sell_tickets[_int], SELECT_BY_TICKET)) continue;
-        if (OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
-      }
-    }
+    if (ma_m0 < ma_m1) close_buy_orders();
+    else if (ma_m0 > ma_m1) close_sell_orders();
   }
 
   if (tp > 0) {
     double _tp = (ma_h0 - ma_l0) / (100 / tp);
-    if (Bid > ma_h0 + _tp) {
-      for (_int = 0; _int < ArraySize(buy_tickets); _int++) {
-        if (!OrderSelect(buy_tickets[_int], SELECT_BY_TICKET)) continue;
-        if (OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
-      }
-    }
-    else if (Ask < ma_l0 - _tp) {
-      for (_int = 0; _int < ArraySize(sell_tickets); _int++) {
-        if (!OrderSelect(sell_tickets[_int], SELECT_BY_TICKET)) continue;
-        if (OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
-      }
-    }
+    if (Bid > ma_h0 + _tp) close_buy_orders();
+    else if (Ask < ma_l0 - _tp) close_sell_orders();
   }
 
   if ((slsum > 0 && pl < 0 && MathAbs(pl) / AccountBalance() * 100 > slsum) ||
       (tpsum > 0 && pl / AccountBalance() * 100 > tpsum)) {
-    for (_int = 0; _int < ArraySize(buy_tickets); _int++) {
-      if (!OrderSelect(buy_tickets[_int], SELECT_BY_TICKET)) continue;
-      if (OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
-    }
-    for (_int = 0; _int < ArraySize(sell_tickets); _int++) {
-      if (!OrderSelect(sell_tickets[_int], SELECT_BY_TICKET)) continue;
-      if (OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
-    }
+    close_buy_orders();
+    close_sell_orders();
+  }
+}
+
+void close_buy_orders() {
+  for (_int = 0; _int < ArraySize(buy_tickets); _int++) {
+    if (!OrderSelect(buy_tickets[_int], SELECT_BY_TICKET)) continue;
+    if (OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
+  }
+}
+
+void close_sell_orders() {
+  for (_int = 0; _int < ArraySize(sell_tickets); _int++) {
+    if (!OrderSelect(sell_tickets[_int], SELECT_BY_TICKET)) continue;
+    if (OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
   }
 }
 
 void open() {
+  double _g = (ma_h0 - ma_l0) / (100 / gap);
   bool should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
-                  && Ask < ma_l0 + hl_m // Lower then the middle
-                  && (buy_nearest_price == 0 || buy_nearest_price - Ask > hl_g) // Order gap, buy lower
+                  && Ask < ma_l0 + (ma_m0 - ma_m1) // Lower then the middle
+                  && (buy_nearest_price == 0 || buy_nearest_price - Ask > _g) // Order gap, buy lower
                   && ArraySize(buy_tickets) < maxord; // Not more than max orders
 
   bool should_sell = ma_m0 < ma_m1 // Downtrend, lower high-low
-                  && Bid > ma_h0 - hl_m // Higher than the middle
-                  && (sell_nearest_price == 0 || Bid - sell_nearest_price > hl_g) // Order gap, sell higher
+                  && Bid > ma_h0 - (ma_m1 - ma_m0) // Higher than the middle
+                  && (sell_nearest_price == 0 || Bid - sell_nearest_price > _g) // Order gap, sell higher
                   && ArraySize(sell_tickets) < maxord; // Not more than max orders
 
   if (should_buy) {
