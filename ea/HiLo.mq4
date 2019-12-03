@@ -1,30 +1,30 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.1"
+#property version   "1.2"
 #property strict
 
-input string secret = "";
-input int magic     = 0;
-input double lots   = 0;
-input double inc    = 0;
-input int tf        = 0;
-input int period    = 0;
-input int maxord    = 0;
-input int gap       = 0;
-input int sl        = 0;
-input int tp        = 0;
-input double slsum  = 0;
-input double tpsum  = 0;
+input string secret = "";// Secret spell to summon the EA
+input int magic     = 0; // ID of the EA
+input double lots   = 0; // Initial lots
+input double inc    = 0; // Increased lots from the initial one (Martingale-like)
+input int tf        = 0; // Timeframe of indicators (60=H1, 1440=D1, 10080=W1)
+input int period    = 0; // Number of candlesticks to be calculated in indicators
+input int maxord    = 0; // Max orders per side
+input int gap       = 0; // Gap between orders (%H-L)
+input double xhl    = 0; // Multiplier range from the first order to H/L
+input int sl        = 0; // Auto stop loss
+input int tp        = 0; // Auto take profit (%H-L exceeded from H/L)
+input double slacc  = 0; // Accepted total loss (%AccountBalance)
+input double tpacc  = 0; // Accepted total profit (%AccountBalance)
 
 int buy_tickets[];
 int sell_tickets[];
 int _int;
-int _size;
 
 double buy_nearest_price;
 double sell_nearest_price;
 double pl;
-double ma_h0, ma_l0, ma_m0, ma_m1;
+double ma_h0, ma_h1, ma_l0, ma_l1, ma_m0, ma_m1;
 
 
 int OnInit() {
@@ -39,6 +39,7 @@ void OnTick() {
 }
 
 void get_orders() {
+  int _size = 0;
   ArrayFree(buy_tickets);
   ArrayFree(sell_tickets);
   buy_nearest_price = 0;
@@ -72,15 +73,17 @@ void get_orders() {
 
 void get_vars() {
   ma_h0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_HIGH, 0);
+  ma_h1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_HIGH, 1);
   ma_l0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
+  ma_l1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_LOW, 1);
   ma_m0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   ma_m1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
 }
 
 void close() {
   if (sl > 0) {
-    if (ma_m0 < ma_m1) close_buy_orders();
-    else if (ma_m0 > ma_m1) close_sell_orders();
+    if (ma_l0 < ma_l1) close_buy_orders();
+    else if (ma_h0 > ma_h1) close_sell_orders();
   }
 
   if (tp > 0) {
@@ -89,8 +92,8 @@ void close() {
     else if (Ask < ma_l0 - _tp) close_sell_orders();
   }
 
-  if ((slsum > 0 && pl < 0 && MathAbs(pl) / AccountBalance() * 100 > slsum) ||
-      (tpsum > 0 && pl / AccountBalance() * 100 > tpsum)) {
+  if ((slacc > 0 && pl < 0 && MathAbs(pl) / AccountBalance() * 100 > slacc) ||
+      (tpacc > 0 && pl / AccountBalance() * 100 > tpacc)) {
     close_buy_orders();
     close_sell_orders();
   }
@@ -111,15 +114,17 @@ void close_sell_orders() {
 }
 
 void open() {
-  double _g = (ma_h0 - ma_l0) / (100 / gap);
-  bool should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
-                  && Ask < ma_l0 + (ma_m0 - ma_m1) // Lower then the middle
-                  && (buy_nearest_price == 0 || buy_nearest_price - Ask > _g) // Order gap, buy lower
+  double _xhl = MathAbs(ma_m0 - ma_m1) * xhl;
+  double _gap = (ma_h0 - ma_l0) / (100 / gap);
+
+  bool should_buy  = ma_l0 > ma_l1 && ma_m0 > ma_m1 // Uptrend, higher high-low
+                  && Ask < ma_m0 && Ask < ma_l0 + _xhl // Lower then the middle
+                  && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
                   && ArraySize(buy_tickets) < maxord; // Not more than max orders
 
-  bool should_sell = ma_m0 < ma_m1 // Downtrend, lower high-low
-                  && Bid > ma_h0 - (ma_m1 - ma_m0) // Higher than the middle
-                  && (sell_nearest_price == 0 || Bid - sell_nearest_price > _g) // Order gap, sell higher
+  bool should_sell = ma_h0 < ma_h1 && ma_m0 < ma_m1 // Downtrend, lower high-low
+                  && Bid > ma_m0 && Bid > ma_h0 - _xhl // Higher than the middle
+                  && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
                   && ArraySize(sell_tickets) < maxord; // Not more than max orders
 
   if (should_buy) {
