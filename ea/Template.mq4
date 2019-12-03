@@ -11,7 +11,6 @@ input double inc    = 0;
 int buy_tickets[];
 int sell_tickets[];
 int _int;
-int _size;
 
 double buy_nearest_price;
 double sell_nearest_price;
@@ -29,6 +28,7 @@ void OnTick() {
 }
 
 void get_orders() {
+  int _size = 0;
   ArrayFree(buy_tickets);
   ArrayFree(sell_tickets);
   buy_nearest_price = 0;
