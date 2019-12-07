@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.2"
+#property version   "1.3"
 #property strict
 
 input string secret = "";// Secret spell to summon the EA
@@ -12,7 +12,7 @@ input int period    = 0; // Number of candlesticks to be calculated in indicator
 input int maxord    = 0; // Max orders per side
 input int gap       = 0; // Gap between orders (%H-L)
 input double xhl    = 0; // Multiplier range from the first order to H/L
-input int sl        = 0; // Auto stop loss
+input int sl        = 0; // Auto stop loss (%H-L exceeded from H/L)
 input int tp        = 0; // Auto take profit (%H-L exceeded from H/L)
 input double slacc  = 0; // Accepted total loss (%AccountBalance)
 input double tpacc  = 0; // Accepted total profit (%AccountBalance)
@@ -82,8 +82,9 @@ void get_vars() {
 
 void close() {
   if (sl > 0) {
-    if (ma_l0 < ma_l1) close_buy_orders();
-    else if (ma_h0 > ma_h1) close_sell_orders();
+    double _sl = (ma_h0 - ma_l0) / (100 / sl);
+    if (ma_l0 < ma_l1 || Bid < ma_l0 - _sl) close_buy_orders();
+    else if (ma_h0 > ma_h1 || Ask > ma_h0 + _sl) close_sell_orders();
   }
 
   if (tp > 0) {
@@ -116,14 +117,15 @@ void close_sell_orders() {
 void open() {
   double _xhl = MathAbs(ma_m0 - ma_m1) * xhl;
   double _gap = (ma_h0 - ma_l0) / (100 / gap);
+  double _sl = (ma_h0 - ma_l0) / (100 / sl);
 
   bool should_buy  = ma_l0 > ma_l1 && ma_m0 > ma_m1 // Uptrend, higher high-low
-                  && Ask < ma_m0 && Ask < ma_l0 + _xhl // Lower then the middle
+                  && Ask < ma_m0 && Ask < ma_l0 + _xhl && Ask > ma_l0 - _sl // Lower then the middle
                   && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
                   && ArraySize(buy_tickets) < maxord; // Not more than max orders
 
   bool should_sell = ma_h0 < ma_h1 && ma_m0 < ma_m1 // Downtrend, lower high-low
-                  && Bid > ma_m0 && Bid > ma_h0 - _xhl // Higher than the middle
+                  && Bid > ma_m0 && Bid > ma_h0 - _xhl && Bid < ma_h0 + _sl // Higher than the middle
                   && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
                   && ArraySize(sell_tickets) < maxord; // Not more than max orders
 
