@@ -116,8 +116,8 @@ void close_sell_orders() {
 
 void open() {
   double _xhl = MathAbs(ma_m0 - ma_m1) * xhl;
-  double _gap = (ma_h0 - ma_l0) / (100 / gap);
-  double _sl = (ma_h0 - ma_l0) / (100 / sl);
+  double _gap = gap > 0 ? (ma_h0 - ma_l0) / (100 / gap) : 0;
+  double _sl = sl > 0 ? (ma_h0 - ma_l0) / (100 / sl) : 0;
 
   bool should_buy  = ma_l0 > ma_l1 && ma_m0 > ma_m1 // Uptrend, higher high-low
                   && Ask < ma_m0 && Ask < ma_l0 + _xhl && Ask > ma_l0 - _sl // Lower then the middle
