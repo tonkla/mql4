@@ -83,8 +83,8 @@ void get_vars() {
 void close() {
   if (sl > 0) {
     double _sl = (ma_h0 - ma_l0) / (100 / sl);
-    if (ma_l0 < ma_l1 || Bid < ma_l0 - _sl) close_buy_orders();
-    else if (ma_h0 > ma_h1 || Ask > ma_h0 + _sl) close_sell_orders();
+    if (ma_l0 < ma_l1 || ma_m0 < ma_m1 || Bid < ma_l0 - _sl) close_buy_orders();
+    else if (ma_h0 > ma_h1 || ma_m0 > ma_m1 || Ask > ma_h0 + _sl) close_sell_orders();
   }
 
   if (tp > 0) {
