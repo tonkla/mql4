@@ -83,14 +83,16 @@ void get_vars() {
 void close() {
   if (sl > 0) {
     double _sl = (ma_h0 - ma_l0) / (100 / sl);
-    if (ma_l0 < ma_l1 || ma_m0 < ma_m1 || Bid < ma_l0 - _sl) close_buy_orders();
-    else if (ma_h0 > ma_h1 || ma_m0 > ma_m1 || Ask > ma_h0 + _sl) close_sell_orders();
+    if ((ma_l0 < ma_l1 || ma_m0 < ma_m1 || Bid < ma_l0 - _sl)
+      && ArraySize(buy_tickets) > 0) close_buy_orders();
+    if ((ma_h0 > ma_h1 || ma_m0 > ma_m1 || Ask > ma_h0 + _sl)
+      && ArraySize(sell_tickets) > 0) close_sell_orders();;
   }
 
   if (tp > 0) {
     double _tp = (ma_h0 - ma_l0) / (100 / tp);
     if (Bid > ma_h0 + _tp) close_buy_orders();
-    else if (Ask < ma_l0 - _tp) close_sell_orders();
+    if (Ask < ma_l0 - _tp) close_sell_orders();
   }
 
   if ((slacc > 0 && pl < 0 && MathAbs(pl) / AccountBalance() * 100 > slacc) ||
@@ -137,7 +139,8 @@ void open() {
                       : lots;
     _int = OrderSend(Symbol(), OP_BUY, _lots, Ask, 3, 0, 0, NULL, magic, 0);
   }
-  else if (should_sell) {
+
+  if (should_sell) {
     double _lots = ArraySize(sell_tickets) == 0
                     ? lots
                     : Bid > sell_nearest_price
