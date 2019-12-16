@@ -86,7 +86,7 @@ void close() {
     if ((ma_l0 < ma_l1 || ma_m0 < ma_m1 || Bid < ma_l0 - _sl)
       && ArraySize(buy_tickets) > 0) close_buy_orders();
     if ((ma_h0 > ma_h1 || ma_m0 > ma_m1 || Ask > ma_h0 + _sl)
-      && ArraySize(sell_tickets) > 0) close_sell_orders();;
+      && ArraySize(sell_tickets) > 0) close_sell_orders();
   }
 
   if (tp > 0) {
