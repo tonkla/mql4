@@ -5,7 +5,7 @@
 
 input string secret = "";// Secret spell to summon the EA
 input int magic     = 0; // ID of the EA
-input double lots   = 0; // Lots
+input float lots    = 0; // Lots
 input int tf        = 0; // Timeframe consumed by indicators (60=H1)
 input int period    = 0; // Number of bars consumed by indicators
 input int sl        = 0; // Auto stop loss (%H-L)
@@ -107,21 +107,21 @@ void open() {
   if (ArraySize(buy_tickets) > 0 || ArraySize(sell_tickets) > 0) return;
   if (closed_time > 0 && TimeCurrent() - closed_time < sleep) return;
 
-  double prev_bar_scores[] = {0, 0, 0};
-  double trend_scores[] = {0, 0, 0};
-  double zone_scores[] = {0, 0, 0};
+  int prev_bar_scores[] = {0, 0, 0};
+  int trend_scores[] = {0, 0, 0};
+  int zone_scores[] = {0, 0, 0};
 
   analyze_prev_bar(prev_bar_scores);
   analyze_trend(trend_scores);
   analyze_zone(zone_scores);
 
-  double buy_score  = ((prev_bar_scores[1] / prev_bar_scores[0])
-                    + (trend_scores[1] / trend_scores[0])
-                    + (zone_scores[1] / zone_scores[0])) * 100 / 3;
+  float buy_score  = ((prev_bar_scores[1] / float(prev_bar_scores[0]))
+                   + (trend_scores[1] / float(trend_scores[0]))
+                   + (zone_scores[1] / float(zone_scores[0]))) * 100 / 3;
 
-  double sell_score = ((prev_bar_scores[2] / prev_bar_scores[0])
-                    + (trend_scores[2] / trend_scores[0])
-                    + (zone_scores[2] / zone_scores[0])) * 100 / 3;
+  float sell_score = ((prev_bar_scores[2] / float(prev_bar_scores[0]))
+                   + (trend_scores[2] / float(trend_scores[0]))
+                   + (zone_scores[2] / float(zone_scores[0]))) * 100 / 3;
 
   if (buy_score > min_score)
     _int = OrderSend(Symbol(), OP_BUY, lots, Ask, 3, 0, 0, NULL, magic, 0);
@@ -130,8 +130,8 @@ void open() {
     _int = OrderSend(Symbol(), OP_SELL, lots, Bid, 3, 0, 0, NULL, magic, 0);
 }
 
-void analyze_prev_bar(double &scores[]) {
-  double u = 0, d = 0;
+void analyze_prev_bar(int &scores[]) {
+  int u = 0, d = 0;
 
   double o = iOpen(Symbol(), tf, 1);
   double h = iHigh(Symbol(), tf, 1);
@@ -156,8 +156,8 @@ void analyze_prev_bar(double &scores[]) {
   scores[2] = d;
 }
 
-void analyze_trend(double &scores[]) {
-  double u = 0, d = 0;
+void analyze_trend(int &scores[]) {
+  int u = 0, d = 0;
 
   if (ma_h0 > ma_h1) u += 1;
   if (ma_l0 > ma_l1) u += 1;
@@ -172,8 +172,8 @@ void analyze_trend(double &scores[]) {
   scores[2] = d;
 }
 
-void analyze_zone(double &scores[]) {
-  double u = 0, d = 0;
+void analyze_zone(int &scores[]) {
+  int u = 0, d = 0;
 
   double h = iHigh(Symbol(), tf, 0);
   double l = iLow(Symbol(), tf, 0);
