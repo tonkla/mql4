@@ -7,8 +7,8 @@ input string secret = "";// Secret spell to summon the EA
 input int magic     = 0; // ID of the EA
 input double lots   = 0; // Initial lots
 input double inc    = 0; // Increased lots from the initial one (Martingale-like)
-input int tf        = 0; // Timeframe of indicators (60=H1, 1440=D1, 10080=W1)
-input int period    = 0; // Number of bars to be calculated in indicators
+input int tf        = 0; // Timeframe consumed by indicators (60=H1, 1440=D1)
+input int period    = 0; // Number of bars consumed indicators
 input int maxord    = 0; // Max orders per side
 input int gap       = 0; // Gap between orders (%H-L)
 input double xhl    = 0; // Multiplier range from the first order to H/L
