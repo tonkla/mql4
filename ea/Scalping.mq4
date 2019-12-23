@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.2"
+#property version   "1.3"
 #property strict
 
 input string secret = "";// Secret spell to summon the EA
@@ -9,6 +9,7 @@ input float lots    = 0; // Lots
 input int tf        = 0; // Timeframe consumed by indicators (60=H1)
 input int period    = 0; // Number of bars consumed by indicators
 input int margin    = 0; // Safety margin between order and H/L (%H-L, 50=median)
+input bool force_sl = 0; // Force stop loss when trend changed
 input int sl        = 0; // Auto stop loss (%H-L)
 input int tp        = 0; // Auto take profit (%H-L)
 input int sleep     = 0; // Sleep in seconds before next order
@@ -71,23 +72,28 @@ void close() {
 
   if (sl > 0 && (buy_pips < 0 || sell_pips < 0)) {
     double _sl = (ma_h_h0 - ma_h_l0) / (100 / sl);
-    if (buy_pips < 0 && MathAbs(buy_pips) > _sl) close_buy_orders();
-    if (sell_pips < 0 && MathAbs(sell_pips) > _sl) close_sell_orders();
+    if (buy_pips < 0 && MathAbs(buy_pips) > _sl) close_buy_order();
+    if (sell_pips < 0 && MathAbs(sell_pips) > _sl) close_sell_order();
   }
 
   if (tp > 0 && (buy_pips > 0 || sell_pips > 0)) {
     double _tp = (ma_h_h0 - ma_h_l0) / (100 / tp);
-    if (buy_pips > _tp) close_buy_orders();
-    if (sell_pips > _tp) close_sell_orders();
+    if (buy_pips > _tp) close_buy_order();
+    if (sell_pips > _tp) close_sell_order();
+  }
+
+  if (force_sl) {
+    if (ma_h_l0 < ma_h_l1) close_buy_order();
+    if (ma_h_h0 > ma_h_h1) close_sell_order();
   }
 }
 
-void close_buy_orders() {
+void close_buy_order() {
   if (!OrderSelect(buy_ticket, SELECT_BY_TICKET)) return;
   if (OrderClose(OrderTicket(), OrderLots(), Bid, 3)) closed_time = TimeCurrent();
 }
 
-void close_sell_orders() {
+void close_sell_order() {
   if (!OrderSelect(sell_ticket, SELECT_BY_TICKET)) return;
   if (OrderClose(OrderTicket(), OrderLots(), Ask, 3)) closed_time = TimeCurrent();
 }
