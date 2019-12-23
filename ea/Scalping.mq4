@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.1"
+#property version   "1.2"
 #property strict
 
 input string secret = "";// Secret spell to summon the EA
@@ -8,9 +8,10 @@ input int magic     = 0; // ID of the EA
 input float lots    = 0; // Lots
 input int tf        = 0; // Timeframe consumed by indicators (60=H1)
 input int period    = 0; // Number of bars consumed by indicators
+input int margin    = 0; // Safety margin between order and H/L (%H-L, 50=median)
 input int sl        = 0; // Auto stop loss (%H-L)
 input int tp        = 0; // Auto take profit (%H-L)
-input int sleep     = 0; // Sleep in seconds before open next order
+input int sleep     = 0; // Sleep in seconds before next order
 input int start_gmt = 0; // GMT hour to start open order
 input int stop_gmt  = 0; // GMT hour to stop open order
 
@@ -104,21 +105,22 @@ void open() {
   double ma_m_l1 = iMA(Symbol(), stf, period, 0, MODE_LWMA, PRICE_LOW, 1);
   double ma_m_m0 = iMA(Symbol(), stf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   double ma_m_m1 = iMA(Symbol(), stf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
-  double hl3 = (ma_m_h0 - ma_m_l0) / 3;
   double o = iOpen(Symbol(), stf, 0);
   double h = iHigh(Symbol(), stf, 0);
   double l = iLow(Symbol(), stf, 0);
   double c = iClose(Symbol(), stf, 0);
+  double hl3 = (ma_m_h0 - ma_m_l0) / 3;
+  double _margin = margin > 0 ? (ma_h_h0 - ma_h_l0) / (100 / margin) : 0;
 
   bool should_buy  = ma_h_m0 > ma_h_m1 && ma_h_l0 > ma_h_l1 // Uptrend, higher high/low
                   && ma_m_m0 > ma_m_m1 && ma_m_l0 > ma_m_l1
                   && (c - o > hl3 || (c > o && o - l > hl3)) // Moving up in smaller timeframe
-                  && Ask < ma_h_m0; // Margin of safety, buy low
+                  && Ask < ma_h_h0 - _margin; // Margin of safety, more margin less loss
 
   bool should_sell = ma_h_m0 < ma_h_m1 && ma_h_h0 < ma_h_h1 // Downtrend, lower high/low
                   && ma_m_m0 < ma_m_m1 && ma_m_h0 < ma_m_h1
                   && (o - c > hl3 || (o > c && h - o > hl3)) // Moving down in smaller timeframe
-                  && Bid > ma_h_m0; // Margin of safety, sell high
+                  && Bid > ma_h_l0 + _margin; // Margin of safety, more margin less loss
 
   if (should_buy)
     _int = OrderSend(Symbol(), OP_BUY, lots, Ask, 3, 0, 0, NULL, magic, 0);
