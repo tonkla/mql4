@@ -40,14 +40,14 @@ int OnCalculate(const int rates_total,
   ObjectCreate(OBJ_ATR, OBJ_LABEL, 0, 0, 0);
   ObjectSetText(OBJ_ATR, "ATR: "+atr, 10, FONT_FACE, White);
   ObjectSet(OBJ_ATR, OBJPROP_CORNER, 1);
-  ObjectSet(OBJ_ATR, OBJPROP_XDISTANCE, 10);
+  ObjectSet(OBJ_ATR, OBJPROP_XDISTANCE, 5);
   ObjectSet(OBJ_ATR, OBJPROP_YDISTANCE, 20);
 
   // High - Low
   ObjectCreate(OBJ_HL, OBJ_LABEL, 0, 0, 0);
   ObjectSetText(OBJ_HL, "H-L: "+hl, 10, FONT_FACE, White);
   ObjectSet(OBJ_HL, OBJPROP_CORNER, 1);
-  ObjectSet(OBJ_HL, OBJPROP_XDISTANCE, 10);
+  ObjectSet(OBJ_HL, OBJPROP_XDISTANCE, 5);
   ObjectSet(OBJ_HL, OBJPROP_YDISTANCE, 35);
 
   return rates_total;
