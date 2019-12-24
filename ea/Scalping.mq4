@@ -118,13 +118,13 @@ void open() {
   double hl3 = (ma_m_h0 - ma_m_l0) / 3;
   double _margin = margin > 0 ? (ma_h_h0 - ma_h_l0) / (100 / margin) : 0;
 
-  bool should_buy  = ma_h_m0 > ma_h_m1 && ma_h_l0 > ma_h_l1 // Uptrend, higher high/low
-                  && ma_m_m0 > ma_m_m1 && ma_m_l0 > ma_m_l1
+  bool should_buy  = ma_h_l0 > ma_h_l1 && ma_h_m0 > ma_h_m1 // Uptrend, higher high/low
+                  && ma_m_l0 > ma_m_l1 && ma_m_m0 > ma_m_m1
                   && (c - o > hl3 || (c > o && o - l > hl3)) // Moving up in smaller timeframe
                   && Ask < ma_h_h0 - _margin; // Margin of safety, more margin less loss
 
-  bool should_sell = ma_h_m0 < ma_h_m1 && ma_h_h0 < ma_h_h1 // Downtrend, lower high/low
-                  && ma_m_m0 < ma_m_m1 && ma_m_h0 < ma_m_h1
+  bool should_sell = ma_h_h0 < ma_h_h1 && ma_h_m0 < ma_h_m1 // Downtrend, lower high/low
+                  && ma_m_h0 < ma_m_h1 && ma_m_m0 < ma_m_m1
                   && (o - c > hl3 || (o > c && h - o > hl3)) // Moving down in smaller timeframe
                   && Bid > ma_h_l0 + _margin; // Margin of safety, more margin less loss
 
