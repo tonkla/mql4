@@ -82,7 +82,7 @@ void get_vars() {
 
 void close() {
   if (sl > 0) {
-    double _sl = (ma_h0 - ma_l0) / (100 / sl);
+    double _sl = (ma_h0 - ma_l0) * sl / 100;
     if ((ma_l0 < ma_l1 || ma_m0 < ma_m1 || Bid < ma_l0 - _sl)
       && ArraySize(buy_tickets) > 0) close_buy_orders();
     if ((ma_h0 > ma_h1 || ma_m0 > ma_m1 || Ask > ma_h0 + _sl)
@@ -90,7 +90,7 @@ void close() {
   }
 
   if (tp > 0) {
-    double _tp = (ma_h0 - ma_l0) / (100 / tp);
+    double _tp = (ma_h0 - ma_l0) * tp / 100;
     if (Bid > ma_h0 + _tp) close_buy_orders();
     if (Ask < ma_l0 - _tp) close_sell_orders();
   }
@@ -118,8 +118,8 @@ void close_sell_orders() {
 
 void open() {
   double _xhl = MathAbs(ma_m0 - ma_m1) * xhl;
-  double _gap = gap > 0 ? (ma_h0 - ma_l0) / (100 / gap) : 0;
-  double _sl = sl > 0 ? (ma_h0 - ma_l0) / (100 / sl) : 0;
+  double _gap = (ma_h0 - ma_l0) * gap / 100;
+  double _sl = (ma_h0 - ma_l0) * sl / 100;
 
   bool should_buy  = ma_l0 > ma_l1 && ma_m0 > ma_m1 // Uptrend, higher high-low
                   && Ask < ma_m0 && Ask < ma_l0 + _xhl && Ask > ma_l0 - _sl // Lower then the middle

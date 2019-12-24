@@ -71,13 +71,13 @@ void close() {
     sell_pips = OrderOpenPrice() - Ask;
 
   if (sl > 0 && (buy_pips < 0 || sell_pips < 0)) {
-    double _sl = (ma_h_h0 - ma_h_l0) / (100 / sl);
+    double _sl = (ma_h_h0 - ma_h_l0) * sl / 100;
     if (buy_pips < 0 && MathAbs(buy_pips) > _sl) close_buy_order();
     if (sell_pips < 0 && MathAbs(sell_pips) > _sl) close_sell_order();
   }
 
   if (tp > 0 && (buy_pips > 0 || sell_pips > 0)) {
-    double _tp = (ma_h_h0 - ma_h_l0) / (100 / tp);
+    double _tp = (ma_h_h0 - ma_h_l0) * tp / 100;
     if (buy_pips > _tp) close_buy_order();
     if (sell_pips > _tp) close_sell_order();
   }
@@ -116,7 +116,7 @@ void open() {
   double l = iLow(Symbol(), stf, 0);
   double c = iClose(Symbol(), stf, 0);
   double hl3 = (ma_m_h0 - ma_m_l0) / 3;
-  double _margin = margin > 0 ? (ma_h_h0 - ma_h_l0) / (100 / margin) : 0;
+  double _margin = (ma_h_h0 - ma_h_l0) * margin / 100;
 
   bool should_buy  = ma_h_l0 > ma_h_l1 && ma_h_m0 > ma_h_m1 // Uptrend, higher high/low
                   && ma_m_l0 > ma_m_l1 && ma_m_m0 > ma_m_m1

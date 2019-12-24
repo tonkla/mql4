@@ -75,13 +75,13 @@ void close() {
     sell_pips = OrderOpenPrice() - Ask;
 
   if (sl > 0 && (buy_pips < 0 || sell_pips < 0)) {
-    double _sl = (ma_h0 - ma_l0) / (100 / sl);
+    double _sl = (ma_h0 - ma_l0) * sl / 100;
     if (buy_pips < 0 && MathAbs(buy_pips) > _sl) close_buy_orders();
     if (sell_pips < 0 && MathAbs(sell_pips) > _sl) close_sell_orders();
   }
 
   if (tp > 0 && (buy_pips > 0 || sell_pips > 0)) {
-    double _tp = (ma_h0 - ma_l0) / (100 / tp);
+    double _tp = (ma_h0 - ma_l0) * tp / 100;
     if (buy_pips > _tp) close_buy_orders();
     if (sell_pips > _tp) close_sell_orders();
   }
