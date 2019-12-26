@@ -8,14 +8,14 @@ input int magic     = 0; // ID of the EA
 input double lots   = 0; // Initial lots
 input double inc    = 0; // Increased lots from the initial one (Martingale-like)
 input int tf        = 0; // Timeframe consumed by indicators (60=H1, 1440=D1)
-input int period    = 0; // Number of bars consumed indicators
+input int period    = 0; // Number of bars consumed by indicators
 input int maxord    = 0; // Max orders per side
 input int gap       = 0; // Gap between orders (%H-L)
 input double xhl    = 0; // Multiplier range from the first order to H/L
 input int sl        = 0; // Auto stop loss (%H-L exceeded from H/L)
 input int tp        = 0; // Auto take profit (%H-L exceeded from H/L)
-input double slacc  = 0; // Accepted total loss (%AccountBalance)
-input double tpacc  = 0; // Accepted total profit (%AccountBalance)
+input double slacc  = 0; // Acceptable total loss (%AccountBalance)
+input double tpacc  = 0; // Acceptable total profit (%AccountBalance)
 
 int buy_tickets[];
 int sell_tickets[];
