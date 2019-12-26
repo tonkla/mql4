@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.0"
+#property version   "1.1"
 #property strict
 
 input string secret = "";// Secret spell to summon the EA
@@ -13,9 +13,9 @@ input int tp        = 0; // Auto take profit (%H-L)
 input double xhl    = 0; // Percent threshold (%H-L)
 
 int buy_ticket, sell_ticket;
-double o, c;
-double ma_h0, ma_l0, hlx;
-datetime closed_time;
+double o, h, l, c;
+double ma_h, ma_l, hlx;
+datetime buy_closed_time, sell_closed_time;
 
 
 int OnInit() {
@@ -49,10 +49,12 @@ void get_order() {
 
 void get_vars() {
   o = iOpen(Symbol(), PERIOD_H1, 0);
+  h = iHigh(Symbol(), PERIOD_H1, 0);
+  l = iLow(Symbol(), PERIOD_H1, 0);
   c = iClose(Symbol(), PERIOD_H1, 0);
-  ma_h0 = iMA(Symbol(), PERIOD_H1, period, 0, MODE_SMA, PRICE_HIGH, 0);
-  ma_l0 = iMA(Symbol(), PERIOD_H1, period, 0, MODE_SMA, PRICE_LOW, 0);
-  hlx = (ma_h0 - ma_l0) * xhl / 100;
+  ma_h = iMA(Symbol(), PERIOD_H1, period, 0, MODE_SMA, PRICE_HIGH, 0);
+  ma_l = iMA(Symbol(), PERIOD_H1, period, 0, MODE_SMA, PRICE_LOW, 0);
+  hlx = (ma_h - ma_l) * xhl / 100;
 }
 
 void close() {
@@ -65,13 +67,13 @@ void close() {
     sell_pips = OrderOpenPrice() - Ask;
 
   if (sl > 0 && (buy_pips < 0 || sell_pips < 0)) {
-    double _sl = (ma_h0 - ma_l0) * sl / 100;
+    double _sl = (ma_h - ma_l) * sl / 100;
     if (buy_pips < 0 && MathAbs(buy_pips) > _sl) close_buy_order();
     if (sell_pips < 0 && MathAbs(sell_pips) > _sl) close_sell_order();
   }
 
   if (tp > 0 && (buy_pips > 0 || sell_pips > 0)) {
-    double _tp = (ma_h0 - ma_l0) * tp / 100;
+    double _tp = (ma_h - ma_l) * tp / 100;
     if (buy_pips > _tp) close_buy_order();
     if (sell_pips > _tp) close_sell_order();
   }
@@ -85,22 +87,29 @@ void close() {
 void close_buy_order() {
   if (!OrderSelect(buy_ticket, SELECT_BY_TICKET)) return;
   if (OrderClose(OrderTicket(), OrderLots(), Bid, 3))
-    closed_time = iTime(Symbol(), PERIOD_H1, 0);
+    buy_closed_time = iTime(Symbol(), PERIOD_H1, 0);
 }
 
 void close_sell_order() {
   if (!OrderSelect(sell_ticket, SELECT_BY_TICKET)) return;
   if (OrderClose(OrderTicket(), OrderLots(), Ask, 3))
-    closed_time = iTime(Symbol(), PERIOD_H1, 0);
+    sell_closed_time = iTime(Symbol(), PERIOD_H1, 0);
 }
 
 void open() {
-  if (buy_ticket > 0 || sell_ticket > 0) return;
-  if (closed_time > 0 && closed_time == iTime(Symbol(), PERIOD_H1, 0)) return;
+  bool should_buy  = (c - o > hlx || (c > o && o - l > hlx))
+                  && ma_h - Ask > hlx
+                  && buy_closed_time != iTime(Symbol(), PERIOD_H1, 0)
+                  && buy_ticket == 0;
 
-  if (c - o > hlx)
-    int i = OrderSend(Symbol(), OP_BUY, lots, Ask, 3, 0, 0, NULL, magic, 0);
+  bool should_sell = (o - c > hlx || (o > c && h - o > hlx))
+                  && Bid - ma_l > hlx
+                  && sell_closed_time != iTime(Symbol(), PERIOD_H1, 0)
+                  && sell_ticket == 0;
 
-  if (o - c > hlx)
-    int i = OrderSend(Symbol(), OP_SELL, lots, Bid, 3, 0, 0, NULL, magic, 0);
+  if (should_buy && OrderSend(Symbol(), OP_BUY, lots, Ask, 3, 0, 0, NULL, magic, 0) > 0)
+    return;
+
+  if (should_sell && OrderSend(Symbol(), OP_SELL, lots, Bid, 3, 0, 0, NULL, magic, 0) > 0)
+    return;
 }
