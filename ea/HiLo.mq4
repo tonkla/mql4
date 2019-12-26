@@ -19,7 +19,6 @@ input double tpacc  = 0; // Accepted total profit (%AccountBalance)
 
 int buy_tickets[];
 int sell_tickets[];
-int _int;
 
 double buy_nearest_price;
 double sell_nearest_price;
@@ -39,29 +38,29 @@ void OnTick() {
 }
 
 void get_orders() {
-  int _size = 0;
+  int size = 0;
   ArrayFree(buy_tickets);
   ArrayFree(sell_tickets);
   buy_nearest_price = 0;
   sell_nearest_price = 0;
   pl = 0;
 
-  for (_int = OrdersTotal() - 1; _int >= 0; _int--) {
-    if (!OrderSelect(_int, SELECT_BY_POS)) continue;
+  for (int i = OrdersTotal() - 1; i >= 0; i--) {
+    if (!OrderSelect(i, SELECT_BY_POS)) continue;
     if (OrderSymbol() != Symbol() || OrderMagicNumber() != magic) continue;
     switch (OrderType()) {
       case OP_BUY:
-        _size = ArraySize(buy_tickets);
-        ArrayResize(buy_tickets, _size + 1);
-        buy_tickets[_size] = OrderTicket();
+        size = ArraySize(buy_tickets);
+        ArrayResize(buy_tickets, size + 1);
+        buy_tickets[size] = OrderTicket();
         if (buy_nearest_price == 0 || MathAbs(OrderOpenPrice() - Ask) < MathAbs(buy_nearest_price - Ask)) {
           buy_nearest_price = OrderOpenPrice();
         }
         break;
       case OP_SELL:
-        _size = ArraySize(sell_tickets);
-        ArrayResize(sell_tickets, _size + 1);
-        sell_tickets[_size] = OrderTicket();
+        size = ArraySize(sell_tickets);
+        ArrayResize(sell_tickets, size + 1);
+        sell_tickets[size] = OrderTicket();
         if (sell_nearest_price == 0 || MathAbs(OrderOpenPrice() - Bid) < MathAbs(sell_nearest_price - Bid)) {
           sell_nearest_price = OrderOpenPrice();
         }
@@ -137,7 +136,7 @@ void open() {
                     : Ask < buy_nearest_price
                       ? NormalizeDouble(ArraySize(buy_tickets) * inc + lots, 2)
                       : lots;
-    _int = OrderSend(Symbol(), OP_BUY, _lots, Ask, 3, 0, 0, NULL, magic, 0);
+    if (0 < OrderSend(Symbol(), OP_BUY, _lots, Ask, 3, 0, 0, NULL, magic, 0)) return;
   }
 
   if (should_sell) {
@@ -146,6 +145,6 @@ void open() {
                     : Bid > sell_nearest_price
                       ? NormalizeDouble(ArraySize(sell_tickets) * inc + lots, 2)
                       : lots;
-    _int = OrderSend(Symbol(), OP_SELL, _lots, Bid, 3, 0, 0, NULL, magic, 0);
+    if (0 < OrderSend(Symbol(), OP_SELL, _lots, Bid, 3, 0, 0, NULL, magic, 0)) return;
   }
 }
