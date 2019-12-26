@@ -82,9 +82,9 @@ void get_vars() {
 void close() {
   if (sl > 0) {
     double _sl = (ma_h0 - ma_l0) * sl / 100;
-    if ((ma_l0 < ma_l1 || ma_m0 < ma_m1 || Bid < ma_l0 - _sl)
+    if ((ma_l0 < ma_l1 || Bid < ma_l0 - _sl)
       && ArraySize(buy_tickets) > 0) close_buy_orders();
-    if ((ma_h0 > ma_h1 || ma_m0 > ma_m1 || Ask > ma_h0 + _sl)
+    if ((ma_h0 > ma_h1 || Ask > ma_h0 + _sl)
       && ArraySize(sell_tickets) > 0) close_sell_orders();
   }
 
@@ -120,12 +120,12 @@ void open() {
   double _gap = (ma_h0 - ma_l0) * gap / 100;
   double _sl = (ma_h0 - ma_l0) * sl / 100;
 
-  bool should_buy  = ma_l0 > ma_l1 && ma_m0 > ma_m1 // Uptrend, higher high-low
+  bool should_buy  = ma_l0 > ma_l1 // Uptrend, higher high-low
                   && Ask < ma_m0 && Ask < ma_l0 + _xhl && Ask > ma_l0 - _sl // Lower then the middle
                   && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
                   && ArraySize(buy_tickets) < maxord; // Not more than max orders
 
-  bool should_sell = ma_h0 < ma_h1 && ma_m0 < ma_m1 // Downtrend, lower high-low
+  bool should_sell = ma_h0 < ma_h1 // Downtrend, lower high-low
                   && Bid > ma_m0 && Bid > ma_h0 - _xhl && Bid < ma_h0 + _sl // Higher than the middle
                   && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
                   && ArraySize(sell_tickets) < maxord; // Not more than max orders
