@@ -21,7 +21,7 @@ input double tp_acc = 0; // Acceptable total profit (%AccountBalance)
 int buy_tickets[], sell_tickets[];
 double buy_nearest_price, sell_nearest_price;
 double pl;
-double ma_h0, ma_h1, ma_l0, ma_l1;
+double ma_h0, ma_h1, ma_l0, ma_l1, ma_m0, ma_m1;
 double high, low;
 datetime buy_closed_time, sell_closed_time;
 
@@ -75,6 +75,8 @@ void get_vars() {
   ma_h1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_HIGH, 1);
   ma_l0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
   ma_l1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_LOW, 1);
+  ma_m0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
+  ma_m1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
 
   high = iHigh(Symbol(), tf, 0);
   low  = iLow(Symbol(), tf, 0);
@@ -141,14 +143,14 @@ void open() {
   double _hlx = (ma_h0 - ma_l0) * hlx / 100;
   double _gap = (ma_h0 - ma_l0) * gap / 100;
 
-  bool should_buy  = ma_l0 > ma_l1 // Uptrend, higher low
+  bool should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
                   && Ask > low + _hlx && Ask - low > high - Ask // Moving up, really?
                   && Ask < ma_h0 - _hlx // Buy zone
                   && buy_closed_time < iTime(Symbol(), tf, 0) // Take a break after loss
                   && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
                   && ArraySize(buy_tickets) < max_ords; // Not more than max orders
 
-  bool should_sell = ma_h0 < ma_h1 // Downtrend, lower high
+  bool should_sell = ma_m0 < ma_m1 // Downtrend, lower high-low
                   && Bid < high - _hlx && Bid - low < high - Bid // Moving down, really?
                   && Bid > ma_l0 + _hlx // Sell zone
                   && sell_closed_time < iTime(Symbol(), tf, 0) // Take a break after loss
