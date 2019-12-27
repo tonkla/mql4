@@ -1,7 +1,9 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.1"
+#property version   "1.2"
 #property strict
+
+#define SLOPE_SW 20
 
 input string secret = "";// Secret spell to summon the EA
 input int magic     = 0; // ID of the EA
@@ -11,7 +13,7 @@ input int tf        = 0; // Timeframe (60=H1, 1440=D1)
 input int period    = 0; // Period
 input int max_ords  = 0; // Max orders per side
 input int gap       = 0; // Gap between orders (%H-L)
-input double hlx    = 0; // Threshold (%H-L)
+input int hlx       = 0; // Threshold (%H-L)
 input bool force_sl = 0; // Force stop loss when trend changed
 input int time_sl   = 0; // Minutes to stop since open
 input int sl        = 0; // Auto stop loss (%H-L)
@@ -22,7 +24,7 @@ input double tp_acc = 0; // Acceptable total profit (%AccountBalance)
 int buy_tickets[], sell_tickets[];
 double buy_nearest_price, sell_nearest_price;
 double pl;
-double ma_h0, ma_h1, ma_l0, ma_l1, ma_m0, ma_m1, ma_h_l;
+double ma_h0, ma_h1, ma_l0, ma_l1, ma_m0, ma_m1, ma_h_l, slope;
 double high, low;
 datetime buy_closed_time, sell_closed_time;
 
@@ -79,6 +81,7 @@ void get_vars() {
   ma_m0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   ma_m1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
   ma_h_l = ma_h0 - ma_l0;
+  slope = MathAbs(ma_m0 - ma_m1) / ma_h_l * 100;
 
   high = iHigh(Symbol(), tf, 0);
   low  = iLow(Symbol(), tf, 0);
@@ -126,7 +129,8 @@ void close() {
   }
 
   if (tp > 0) {
-    double _tp = ma_h_l * tp / 100;
+    // On sideway, limit TP to 90%
+    double _tp = slope < SLOPE_SW ? ma_h_l * 0.9 : ma_h_l * tp / 100;
     for (int i = 0; i < ArraySize(buy_tickets); i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (Bid - OrderOpenPrice() > _tp
@@ -155,22 +159,41 @@ void close_sell_orders() {
 }
 
 void open() {
-  double _hlx = ma_h_l * hlx / 100;
-  double _gap = ma_h_l * gap / 100;
+  bool should_buy, should_sell;
+  double _hlx, _gap;
 
-  bool should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
-                  && Ask > low + _hlx && Ask - low > high - Ask // Moving up, really?
-                  && Ask < ma_h0 - _hlx // Buy zone
-                  && buy_closed_time < iTime(Symbol(), tf, 0) // Take a break after loss
-                  && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
-                  && ArraySize(buy_tickets) < max_ords; // Not more than max orders
+  // Sideway: swing trade
+  if (slope < SLOPE_SW) {
+    _hlx = ma_h_l * 0.1;
 
-  bool should_sell = ma_m0 < ma_m1 // Downtrend, lower high-low
-                  && Bid < high - _hlx && Bid - low < high - Bid // Moving down, really?
-                  && Bid > ma_l0 + _hlx // Sell zone
-                  && sell_closed_time < iTime(Symbol(), tf, 0) // Take a break after loss
-                  && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
-                  && ArraySize(sell_tickets) < max_ords; // Not more than max orders
+    should_buy  = Ask < ma_l0 + _hlx;
+
+    should_sell = Bid > ma_h0 - _hlx;
+  }
+  // Trend: following
+  else {
+    _hlx = ma_h_l * hlx / 100;
+
+    should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
+               && Ask > low + _hlx && Ask - low > high - Ask // Moving up, really?
+               && Ask < ma_h0 - _hlx; // Buy zone
+
+    should_sell = ma_m0 < ma_m1 // Downtrend, lower high-low
+               && Bid < high - _hlx && Bid - low < high - Bid // Moving down, really?
+               && Bid > ma_l0 + _hlx; // Sell zone
+  }
+
+  _gap = ma_h_l * gap / 100;
+
+  should_buy  = should_buy
+             && buy_closed_time < iTime(Symbol(), tf, 0) // Take a break after loss
+             && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
+             && ArraySize(buy_tickets) < max_ords; // Not more than max orders
+
+  should_sell = should_sell
+             && sell_closed_time < iTime(Symbol(), tf, 0) // Take a break after loss
+             && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
+             && ArraySize(sell_tickets) < max_ords; // Not more than max orders
 
   if (should_buy) {
     double _lots = ArraySize(buy_tickets) == 0
