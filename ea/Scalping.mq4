@@ -102,12 +102,14 @@ void close() {
   if (time_sl > 0) {
     for (int i = 0; i < ArraySize(buy_tickets); i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
-      if (OrderProfit() < 0 && TimeMinute(TimeCurrent() - OrderOpenTime()) > time_sl
+      if (OrderProfit() + OrderCommission() + OrderSwap() <= 0
+          && TimeMinute(TimeCurrent() - OrderOpenTime()) > time_sl
           && OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
     }
     for (int i = 0; i < ArraySize(sell_tickets); i++) {
       if (!OrderSelect(sell_tickets[i], SELECT_BY_TICKET)) continue;
-      if (OrderProfit() < 0 && TimeMinute(TimeCurrent() - OrderOpenTime()) > time_sl
+      if (OrderProfit() + OrderCommission() + OrderSwap() <= 0
+          && TimeMinute(TimeCurrent() - OrderOpenTime()) > time_sl
           && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
     }
   }
@@ -129,8 +131,8 @@ void close() {
   }
 
   if (tp > 0) {
-    // On sideway, limit TP to 90%
-    double _tp = slope < SLOPE_SW ? ma_h_l * 0.9 : ma_h_l * tp / 100;
+    // On sideway, limit TP to 85%
+    double _tp = slope < SLOPE_SW ? ma_h_l * 0.85 : ma_h_l * tp / 100;
     for (int i = 0; i < ArraySize(buy_tickets); i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (Bid - OrderOpenPrice() > _tp
@@ -166,9 +168,9 @@ void open() {
   if (slope < SLOPE_SW) {
     _hlx = ma_h_l * 0.1;
 
-    should_buy  = Ask < ma_l0 + _hlx;
+    should_buy  = ma_l0 > ma_l1 && Ask < ma_l0 + _hlx;
 
-    should_sell = Bid > ma_h0 - _hlx;
+    should_sell = ma_h0 < ma_h1 && Bid > ma_h0 - _hlx;
   }
   // Trend: following
   else {
