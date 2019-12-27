@@ -22,7 +22,7 @@ input double tp_acc = 0; // Acceptable total profit (%AccountBalance)
 int buy_tickets[], sell_tickets[];
 double buy_nearest_price, sell_nearest_price;
 double pl;
-double ma_h0, ma_h1, ma_l0, ma_l1, ma_m0, ma_m1;
+double ma_h0, ma_h1, ma_l0, ma_l1, ma_m0, ma_m1, ma_h_l;
 double high, low;
 datetime buy_closed_time, sell_closed_time;
 
@@ -78,6 +78,7 @@ void get_vars() {
   ma_l1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_LOW, 1);
   ma_m0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   ma_m1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
+  ma_h_l = ma_h0 - ma_l0;
 
   high = iHigh(Symbol(), tf, 0);
   low  = iLow(Symbol(), tf, 0);
@@ -109,7 +110,7 @@ void close() {
   }
 
   if (sl > 0) {
-    double _sl = (ma_h0 - ma_l0) * sl / 100;
+    double _sl = ma_h_l * sl / 100;
     for (int i = 0; i < ArraySize(buy_tickets); i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (OrderProfit() < 0 && OrderOpenPrice() - Bid > _sl
@@ -125,16 +126,16 @@ void close() {
   }
 
   if (tp > 0) {
-    double _tp = (ma_h0 - ma_l0) * tp / 100;
+    double _tp = ma_h_l * tp / 100;
     for (int i = 0; i < ArraySize(buy_tickets); i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (Bid - OrderOpenPrice() > _tp
-        && OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
+          && OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
     }
     for (int i = 0; i < ArraySize(sell_tickets); i++) {
       if (!OrderSelect(sell_tickets[i], SELECT_BY_TICKET)) continue;
       if (OrderOpenPrice() - Ask > _tp
-        && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
+          && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
     }
   }
 }
@@ -154,8 +155,8 @@ void close_sell_orders() {
 }
 
 void open() {
-  double _hlx = (ma_h0 - ma_l0) * hlx / 100;
-  double _gap = (ma_h0 - ma_l0) * gap / 100;
+  double _hlx = ma_h_l * hlx / 100;
+  double _gap = ma_h_l * gap / 100;
 
   bool should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
                   && Ask > low + _hlx && Ask - low > high - Ask // Moving up, really?
