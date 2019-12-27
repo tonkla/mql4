@@ -10,7 +10,7 @@ input int period    = 0; // Number of bars consumed by indicators
 input bool force_sl = 0; // Force stop loss when trend changed
 input int sl        = 0; // Auto stop loss (%H-L)
 input int tp        = 0; // Auto take profit (%H-L)
-input double xhl    = 0; // Percent threshold (%H-L)
+input double xhl    = 0; // Threshold (%H-L)
 
 int buy_ticket, sell_ticket;
 double o, h, l, c;
@@ -86,30 +86,28 @@ void close() {
 
 void close_buy_order() {
   if (!OrderSelect(buy_ticket, SELECT_BY_TICKET)) return;
-  if (OrderClose(OrderTicket(), OrderLots(), Bid, 3))
-    buy_closed_time = iTime(Symbol(), PERIOD_H1, 0);
+  if (OrderClose(OrderTicket(), OrderLots(), Bid, 3)) buy_closed_time = TimeCurrent();
 }
 
 void close_sell_order() {
   if (!OrderSelect(sell_ticket, SELECT_BY_TICKET)) return;
-  if (OrderClose(OrderTicket(), OrderLots(), Ask, 3))
-    sell_closed_time = iTime(Symbol(), PERIOD_H1, 0);
+  if (OrderClose(OrderTicket(), OrderLots(), Ask, 3)) sell_closed_time = TimeCurrent();
 }
 
 void open() {
-  bool should_buy  = (c - o > hlx || (c > o && o - l > hlx))
-                  && ma_h - Ask > hlx
-                  && buy_closed_time != iTime(Symbol(), PERIOD_H1, 0)
-                  && buy_ticket == 0;
+  bool should_buy  = (c - o > hlx || (c > o && o - l > hlx)) // Moving up
+                  && Ask < ma_h - hlx // Buy zone
+                  && buy_closed_time < iTime(Symbol(), PERIOD_H1, 0) // Buy once per TF
+                  && buy_ticket == 0; // Only one buy order
 
-  bool should_sell = (o - c > hlx || (o > c && h - o > hlx))
-                  && Bid - ma_l > hlx
-                  && sell_closed_time != iTime(Symbol(), PERIOD_H1, 0)
-                  && sell_ticket == 0;
+  bool should_sell = (o - c > hlx || (o > c && h - o > hlx)) // Moving down
+                  && Bid > ma_l + hlx // Sell zone
+                  && sell_closed_time < iTime(Symbol(), PERIOD_H1, 0) // Sell once per TF
+                  && sell_ticket == 0; // Only one sell order
 
-  if (should_buy && OrderSend(Symbol(), OP_BUY, lots, Ask, 3, 0, 0, NULL, magic, 0) > 0)
+  if (should_buy && 0 < OrderSend(Symbol(), OP_BUY, lots, Ask, 3, 0, 0, NULL, magic, 0))
     return;
 
-  if (should_sell && OrderSend(Symbol(), OP_SELL, lots, Bid, 3, 0, 0, NULL, magic, 0) > 0)
+  if (should_sell && 0 < OrderSend(Symbol(), OP_SELL, lots, Bid, 3, 0, 0, NULL, magic, 0))
     return;
 }
