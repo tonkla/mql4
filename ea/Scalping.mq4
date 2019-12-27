@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.0"
+#property version   "1.1"
 #property strict
 
 input string secret = "";// Secret spell to summon the EA
@@ -13,6 +13,7 @@ input int max_ords  = 0; // Max orders per side
 input int gap       = 0; // Gap between orders (%H-L)
 input double hlx    = 0; // Threshold (%H-L)
 input bool force_sl = 0; // Force stop loss when trend changed
+input int time_sl   = 0; // Minutes to stop since open
 input int sl        = 0; // Auto stop loss (%H-L)
 input int tp        = 0; // Auto take profit (%H-L)
 input double sl_acc = 0; // Acceptable total loss (%AccountBalance)
@@ -92,6 +93,19 @@ void close() {
   if (force_sl) {
     if (ma_l0 < ma_l1 && ArraySize(buy_tickets) > 0) close_buy_orders();
     if (ma_h0 > ma_h1 && ArraySize(sell_tickets) > 0) close_sell_orders();
+  }
+
+  if (time_sl > 0) {
+    for (int i = 0; i < ArraySize(buy_tickets); i++) {
+      if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
+      if (OrderProfit() < 0 && TimeMinute(TimeCurrent() - OrderOpenTime()) > time_sl
+          && OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
+    }
+    for (int i = 0; i < ArraySize(sell_tickets); i++) {
+      if (!OrderSelect(sell_tickets[i], SELECT_BY_TICKET)) continue;
+      if (OrderProfit() < 0 && TimeMinute(TimeCurrent() - OrderOpenTime()) > time_sl
+          && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
+    }
   }
 
   if (sl > 0) {
