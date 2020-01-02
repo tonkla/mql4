@@ -188,14 +188,14 @@ void open() {
 
   double should_buy  = ma_h0 > ma_h1 && ma_l0 > ma_l1 // Uptrend, higher high-low
                     && lidx > hidx && _h - Ask < Bid - _l && Bid - _l > _threshold // Moving up
-                    && Ask < h0 - _min_open // Buy zone
+                    && Ask < ma_h0 - _min_open // Buy zone
                     && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
                     && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
                     && ArraySize(buy_tickets) < max_ords; // Not more than allowed max orders
 
   double should_sell = ma_h0 < ma_h1 && ma_l0 < ma_l1 // Downtrend, lower high-low
                     && lidx < hidx && _h - Ask > Bid - _l && _h - Ask > _threshold // Moving down
-                    && Bid > l0 + _min_open // Sell zone
+                    && Bid > ma_l0 + _min_open // Sell zone
                     && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
                     && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
                     && ArraySize(sell_tickets) < max_ords; // Not more than allowed max orders
