@@ -8,11 +8,8 @@ input int magic     = 0;
 input double lots   = 0;
 input double inc    = 0;
 
-int buy_tickets[];
-int sell_tickets[];
-
-double buy_nearest_price;
-double sell_nearest_price;
+int buy_tickets[], sell_tickets[];
+double buy_nearest_price, sell_nearest_price;
 
 
 int OnInit() {
@@ -69,20 +66,24 @@ void open() {
   bool should_sell = false;
 
   if (should_buy) {
-    double _lots = ArraySize(buy_tickets) == 0
+    double _lots = inc == 0
                     ? lots
-                    : Ask < buy_nearest_price
-                      ? NormalizeDouble(ArraySize(buy_tickets) * inc + lots, 2)
-                      : lots;
+                    : ArraySize(buy_tickets) == 0
+                      ? lots
+                      : Ask > buy_nearest_price
+                        ? lots
+                        : NormalizeDouble(ArraySize(buy_tickets) * inc + lots, 2);
     if (0 < OrderSend(Symbol(), OP_BUY, _lots, Ask, 3, 0, 0, NULL, magic, 0)) return;
   }
 
   if (should_sell) {
-    double _lots = ArraySize(sell_tickets) == 0
+    double _lots = inc == 0
                     ? lots
-                    : Bid > sell_nearest_price
-                      ? NormalizeDouble(ArraySize(sell_tickets) * inc + lots, 2)
-                      : lots;
+                    : ArraySize(sell_tickets) == 0
+                      ? lots
+                      : Bid < sell_nearest_price
+                        ? lots
+                        : NormalizeDouble(ArraySize(sell_tickets) * inc + lots, 2);
     if (0 < OrderSend(Symbol(), OP_SELL, _lots, Bid, 3, 0, 0, NULL, magic, 0)) return;
   }
 }

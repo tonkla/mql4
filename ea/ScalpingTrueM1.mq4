@@ -1,19 +1,19 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.6"
+#property version   "1.3"
 #property strict
+
+#define SLOPE_SW 20
 
 input string secret = "";// Secret spell to summon the EA
 input int magic     = 0; // ID of the EA
 input double lots   = 0; // Initial lots
 input double inc    = 0; // Increased lots from the initial one (Martingale-like)
 input int tf        = 0; // Timeframe (60=H1, 1440=D1)
-input int period    = 0; // Period
 input int max_ords  = 0; // Max orders per side
 input int gap       = 0; // Gap between orders (%H-L)
-input double xhl    = 0; // Multiplier for median line's slope
-input int sleep     = 0; // Seconds to sleep since loss
-input int time_sl   = 0; // Seconds to close the order since open
+input int sleep     = 0; // Seconds to sleep after loss
+input int time_sl   = 0; // Seconds to stop since open
 input bool force_sl = 0; // Force stop loss when trend changed
 input int sl        = 0; // Auto stop loss (%H-L)
 input int tp        = 0; // Auto take profit (%H-L)
@@ -22,7 +22,12 @@ input double tp_acc = 0; // Acceptable total profit (%AccountBalance)
 
 int buy_tickets[], sell_tickets[];
 double buy_nearest_price, sell_nearest_price, pl;
-double ma_h0, ma_h1, ma_l0, ma_l1, ma_m0, ma_m1, ma_h_l;
+double h0, l0, h1, l1, h2, l2, h3, l3, h4, l4;
+double m0, m1;
+// double m0, m1, m2, m3, m4;
+// double ma_h0, ma_l0, ma_m0, ma_m1, ma_h_l, slope;
+double ma_h0, ma_h1, ma_l0, ma_l1, h_l, slope;
+int calc_round;
 datetime buy_closed_time, sell_closed_time;
 
 
@@ -71,13 +76,36 @@ void get_orders() {
 }
 
 void get_vars() {
-  ma_h0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_HIGH, 0);
-  ma_h1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_HIGH, 1);
-  ma_l0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
-  ma_l1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_LOW, 1);
-  ma_m0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
-  ma_m1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
-  ma_h_l = ma_h0 - ma_l0;
+  h0 = iHigh(Symbol(), 1, iHighest(Symbol(), 1, MODE_HIGH, tf, 0));
+  l0 = iLow(Symbol(), 1, iLowest(Symbol(), 1, MODE_LOW, tf, 0));
+  h1 = iHigh(Symbol(), 1, iHighest(Symbol(), 1, MODE_HIGH, tf, tf));
+  l1 = iLow(Symbol(), 1, iLowest(Symbol(), 1, MODE_LOW, tf, tf));
+  h2 = iHigh(Symbol(), 1, iHighest(Symbol(), 1, MODE_HIGH, tf, tf * 2));
+  l2 = iLow(Symbol(), 1, iLowest(Symbol(), 1, MODE_LOW, tf, tf * 2));
+  h3 = iHigh(Symbol(), 1, iHighest(Symbol(), 1, MODE_HIGH, tf, tf * 3));
+  l3 = iLow(Symbol(), 1, iLowest(Symbol(), 1, MODE_LOW, tf, tf * 3));
+  h4 = iHigh(Symbol(), 1, iHighest(Symbol(), 1, MODE_HIGH, tf, tf * 4));
+  l4 = iLow(Symbol(), 1, iLowest(Symbol(), 1, MODE_LOW, tf, tf * 4));
+
+  m0 = ((h0 - l0) / 2) + l0;
+  m1 = ((h1 - l1) / 2) + l1;
+  // m2 = ((h2 - l2) / 2) + l2;
+  // m3 = ((h3 - l3) / 2) + l3;
+  // m4 = ((h4 - l4) / 2) + l4;
+
+  ma_h0 = (h0 + h1 + h2 + h3) / 4;
+  ma_l0 = (l0 + l1 + l2 + l3) / 4;
+  ma_h1 = (h1 + h2 + h3 + h4) / 4;
+  ma_l1 = (l1 + l2 + l3 + l4) / 4;
+  // ma_m0 = (m0 + m1 + m2 + m3) / 4;
+  // ma_m1 = (m1 + m2 + m3 + m4) / 4;
+
+  // ma_h_l = ma_h0 - ma_l0;
+  // slope = MathAbs(ma_m0 - ma_m1) / ma_h_l * 100;
+  h_l = h0 - l0;
+  slope = MathAbs(m0 - m1) / h_l * 100;
+
+  if (calc_round < 30) calc_round++;
 }
 
 void close() {
@@ -88,8 +116,8 @@ void close() {
   }
 
   if (force_sl) {
-    if (ma_l0 < ma_l1 && ArraySize(buy_tickets) > 0) close_buy_orders();
-    if (ma_h0 > ma_h1 && ArraySize(sell_tickets) > 0) close_sell_orders();
+    if (ma_h0 < ma_h1 && ma_l0 < ma_l1 && ArraySize(buy_tickets) > 0) close_buy_orders();
+    if (ma_h0 > ma_h1 && ma_l0 > ma_l1 && ArraySize(sell_tickets) > 0) close_sell_orders();
   }
 
   if (time_sl > 0) {
@@ -106,7 +134,7 @@ void close() {
   }
 
   if (sl > 0) {
-    double _sl = ma_h_l * sl / 100;
+    double _sl = h_l * sl / 100;
     for (int i = 0; i < ArraySize(buy_tickets); i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (OrderProfit() < 0 && OrderOpenPrice() - Bid > _sl
@@ -122,7 +150,8 @@ void close() {
   }
 
   if (tp > 0) {
-    double _tp = ma_h_l * tp / 100;
+    // On sideway, limit TP to 85%
+    double _tp = slope < SLOPE_SW ? h_l * 0.85 : h_l * tp / 100;
     for (int i = 0; i < ArraySize(buy_tickets); i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (Bid - OrderOpenPrice() > _tp
@@ -151,20 +180,47 @@ void close_sell_orders() {
 }
 
 void open() {
-  double _xhl = MathAbs(ma_m0 - ma_m1) * xhl;
-  double _gap = ma_h_l * gap / 100;
+  // Note: it needs time to fetch previous bars of M1
+  if (calc_round < 30) return;
 
-  bool should_buy  = ma_l0 > ma_l1 // Uptrend, higher low
-                  && Ask < ma_l0 + _xhl // Lower than the median line slope
-                  && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
-                  && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
-                  && ArraySize(buy_tickets) < max_ords; // Not more than allowed max orders
+  bool should_buy, should_sell;
 
-  bool should_sell = ma_h0 < ma_h1 // Downtrend, lower high
-                  && Bid > ma_h0 - _xhl // Higher than the median line slope
-                  && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
-                  && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
-                  && ArraySize(sell_tickets) < max_ords; // Not more than allowed max orders
+  // Sideway: swing trade
+  if (slope < SLOPE_SW) {
+    double _min_open = h_l * 0.1;
+    should_buy  = ma_l0 > ma_l1 && Ask < ma_l0 + _min_open;
+    should_sell = ma_h0 < ma_h1 && Bid > ma_h0 - _min_open;
+  }
+  // Trend: following
+  else {
+    int hidx = iHighest(Symbol(), 1, MODE_HIGH, 10, 0);
+    int lidx = iLowest(Symbol(), 1, MODE_LOW, 10, 0);
+    double h = iHigh(Symbol(), 1, hidx);
+    double l = iLow(Symbol(), 1, lidx);
+
+    double _min_open = h_l * 0.25;
+    double _threshold = h_l * 0.18;
+
+    should_buy  = ma_h0 > ma_h1 && ma_l0 > ma_l1 // Uptrend, higher high-low
+               && lidx > hidx && h - Ask < Bid - l && Bid - l > _threshold // Moving up
+               && Ask < h0 - _min_open; // Buy zone
+
+    should_sell = ma_h0 < ma_h1 && ma_l0 < ma_l1 // Downtrend, lower high-low
+               && lidx < hidx && h - Ask > Bid - l && h - Ask > _threshold // Moving down
+               && Bid > l0 + _min_open; // Sell zone
+  }
+
+  double _gap = h_l * gap / 100;
+
+  should_buy  = should_buy
+             && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
+             && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
+             && ArraySize(buy_tickets) < max_ords; // Not more than allowed max orders
+
+  should_sell = should_sell
+             && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
+             && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
+             && ArraySize(sell_tickets) < max_ords; // Not more than allowed max orders
 
   if (should_buy) {
     double _lots = inc == 0
