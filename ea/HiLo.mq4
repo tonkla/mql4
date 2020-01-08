@@ -65,7 +65,7 @@ void get_orders() {
         }
         break;
     }
-    pl += OrderProfit();
+    pl += OrderProfit() + OrderCommission() + OrderSwap();
   }
 }
 
