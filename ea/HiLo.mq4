@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.6"
+#property version   "1.7"
 #property strict
 
 input string secret = "";// Secret spell to summon the EA
@@ -11,7 +11,6 @@ input int tf        = 0; // Timeframe (60=H1, 1440=D1)
 input int period    = 0; // Period
 input int max_ords  = 0; // Max orders per side
 input int gap       = 0; // Gap between orders (%H-L)
-input double xhl    = 0; // Multiplier for median line's slope
 input int sleep     = 0; // Seconds to sleep since loss
 input int time_sl   = 0; // Seconds to close the order since open
 input bool force_sl = 0; // Force stop loss when trend changed
@@ -22,7 +21,7 @@ input double tp_acc = 0; // Acceptable total profit (%AccountBalance)
 
 int buy_tickets[], sell_tickets[];
 double buy_nearest_price, sell_nearest_price, pl;
-double ma_h0, ma_h1, ma_l0, ma_l1, ma_m0, ma_m1, ma_h_l;
+double ma_h0, ma_h1, ma_l0, ma_l1, ma_m0, ma_m1, ma_h_l, slope;
 datetime buy_closed_time, sell_closed_time;
 
 
@@ -78,6 +77,7 @@ void get_vars() {
   ma_m0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   ma_m1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
   ma_h_l = ma_h0 - ma_l0;
+  slope = MathAbs(ma_m0 - ma_m1) / ma_h_l * 100;
 }
 
 void close() {
@@ -88,8 +88,8 @@ void close() {
   }
 
   if (force_sl) {
-    if (ma_l0 < ma_l1 && ArraySize(buy_tickets) > 0) close_buy_orders();
-    if (ma_h0 > ma_h1 && ArraySize(sell_tickets) > 0) close_sell_orders();
+    if (ma_m0 < ma_m1 && ArraySize(buy_tickets) > 0) close_buy_orders();
+    if (ma_m0 > ma_m1 && ArraySize(sell_tickets) > 0) close_sell_orders();
   }
 
   if (time_sl > 0) {
@@ -106,7 +106,7 @@ void close() {
   }
 
   if (sl > 0) {
-    double _sl = ma_h_l * sl / 100;
+    double _sl = sl * ma_h_l / 100;
     for (int i = 0; i < ArraySize(buy_tickets); i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (OrderProfit() < 0 && OrderOpenPrice() - Bid > _sl
@@ -122,7 +122,7 @@ void close() {
   }
 
   if (tp > 0) {
-    double _tp = ma_h_l * tp / 100;
+    double _tp = tp * ma_h_l / 100;
     for (int i = 0; i < ArraySize(buy_tickets); i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (Bid - OrderOpenPrice() > _tp
@@ -151,17 +151,19 @@ void close_sell_orders() {
 }
 
 void open() {
-  double _xhl = MathAbs(ma_m0 - ma_m1) * xhl;
-  double _gap = ma_h_l * gap / 100;
+  if (slope < 20) return;
 
-  bool should_buy  = ma_l0 > ma_l1 // Uptrend, higher low
-                  && Ask < ma_l0 + _xhl // Lower than the median line slope
+  double _xhl = 0.2 * ma_h_l;
+  double _gap = gap * ma_h_l / 100;
+
+  bool should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
+                  && Ask < ma_h0 - _xhl // Limited buy zone
                   && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
                   && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
                   && ArraySize(buy_tickets) < max_ords; // Not more than allowed max orders
 
-  bool should_sell = ma_h0 < ma_h1 // Downtrend, lower high
-                  && Bid > ma_h0 - _xhl // Higher than the median line slope
+  bool should_sell = ma_m0 < ma_m1 // Downtrend, lower high-low
+                  && Bid > ma_l0 + _xhl // Limited sell zone
                   && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
                   && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
                   && ArraySize(sell_tickets) < max_ords; // Not more than allowed max orders
