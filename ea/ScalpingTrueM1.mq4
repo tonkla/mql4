@@ -1,13 +1,13 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.3"
+#property version   "1.4"
 #property strict
 
 input string secret = "";// Secret spell to summon the EA
 input int magic     = 0; // ID of the EA
 input double lots   = 0; // Initial lots
 input double inc    = 0; // Increased lots from the initial one (Martingale-like)
-input int tf        = 0; // Timeframe (60=H1, 1440=D1)
+input int tf        = 0; // Timeframe (60=H1)
 input int max_ords  = 0; // Max orders per side
 input int gap       = 0; // Gap between orders (%H-L)
 input int sleep     = 0; // Seconds to sleep after loss
@@ -83,7 +83,10 @@ void get_vars() {
   ma_h0 = (h0 + h1 + h2) / 3;
   ma_l0 = (l0 + l1 + l2) / 3;
   h_l = h0 - l0;
-  slope = MathAbs(m0 - m1) / h_l * 100;
+  // slope = MathAbs(m0 - m1) / h_l * 100;
+  slope = MathAbs(iMA(Symbol(), tf, 3, 0, MODE_LWMA, PRICE_MEDIAN, 0) -
+                  iMA(Symbol(), tf, 3, 0, MODE_LWMA, PRICE_MEDIAN, 1)) /
+            iATR(Symbol(), tf, 3, 0) * 100;
 
   if (calc_round < 20) calc_round++;
 }
