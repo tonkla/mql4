@@ -176,19 +176,19 @@ void open() {
   double h = iHigh(Symbol(), 1, hidx);
   double l = iLow(Symbol(), 1, lidx);
 
-  double should_buy  = m0 > m1 // Uptrend, higher high-low
-                    && lidx > hidx && h - Ask < Bid - l && Bid - l > _threshold // Moving up
-                    && Ask < ma_h0 - _min_open // Limited buy zone
-                    && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
-                    && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
-                    && ArraySize(buy_tickets) < max_ords; // Not more than allowed max orders
+  bool should_buy  = m0 > m1 // Uptrend, higher high-low
+                  && lidx > hidx && h - Ask < Bid - l && Bid - l > _threshold // Moving up
+                  && Ask < ma_h0 - _min_open // Limited buy zone
+                  && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
+                  && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
+                  && ArraySize(buy_tickets) < max_ords; // Not more than allowed max orders
 
-  double should_sell = m0 < m1 // Downtrend, lower high-low
-                    && lidx < hidx && h - Ask > Bid - l && h - Ask > _threshold // Moving down
-                    && Bid > ma_l0 + _min_open // Limited sell zone
-                    && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
-                    && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
-                    && ArraySize(sell_tickets) < max_ords; // Not more than allowed max orders
+  bool should_sell = m0 < m1 // Downtrend, lower high-low
+                  && lidx < hidx && h - Ask > Bid - l && h - Ask > _threshold // Moving down
+                  && Bid > ma_l0 + _min_open // Limited sell zone
+                  && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
+                  && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
+                  && ArraySize(sell_tickets) < max_ords; // Not more than allowed max orders
 
   if (should_buy) {
     double _lots = inc == 0

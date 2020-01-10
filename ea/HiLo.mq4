@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.7"
+#property version   "1.8"
 #property strict
 
 input string secret = "";// Secret spell to summon the EA
@@ -153,17 +153,25 @@ void close_sell_orders() {
 void open() {
   if (slope < 20) return;
 
-  double _xhl = 0.2 * ma_h_l;
+  double _min = 0.2 * ma_h_l;
   double _gap = gap * ma_h_l / 100;
 
+  int hidx = iHighest(Symbol(), 1, MODE_HIGH, 5, 0);
+  int lidx = iLowest(Symbol(), 1, MODE_LOW, 5, 0);
+  double h = iHigh(Symbol(), 1, hidx);
+  double l = iLow(Symbol(), 1, lidx)
+  double t = 0.5 * (h - l);
+
   bool should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
-                  && Ask < ma_h0 - _xhl // Limited buy zone
+                  && lidx > hidx && h - Ask < Bid - l && Bid - l > t // Moving up
+                  && Ask < ma_h0 - _min // Limited buy zone
                   && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
                   && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
                   && ArraySize(buy_tickets) < max_ords; // Not more than allowed max orders
 
   bool should_sell = ma_m0 < ma_m1 // Downtrend, lower high-low
-                  && Bid > ma_l0 + _xhl // Limited sell zone
+                  && lidx < hidx && h - Ask > Bid - l && h - Ask > t // Moving down
+                  && Bid > ma_l0 + _min // Limited sell zone
                   && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
                   && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
                   && ArraySize(sell_tickets) < max_ords; // Not more than allowed max orders
