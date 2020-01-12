@@ -134,47 +134,38 @@ void close_sell_orders() {
 }
 
 void open() {
+  int buy_count = ArraySize(buy_tickets);
+  int sell_count = ArraySize(sell_tickets);
+
   bool should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
-                  && ((ArraySize(buy_tickets) == 0
-                        && (Ask < iOpen(Symbol(), tf, 0)
-                          || iTime(Symbol(), tf, 0) != candle_time))
-                      || (ArraySize(buy_tickets) > 0
-                        && buy_nearest_price - Ask > gap * ma_h_l / 100)) // Order gap, buy lower
+                  && ((buy_count == 0 && (Ask < iOpen(Symbol(), tf, 0) || iTime(Symbol(), tf, 0) != candle_time))
+                    || (buy_count > 0 && buy_nearest_price - Ask > gap * ma_h_l / 100)) // Order gap, buy lower
                   && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
-                  && ArraySize(buy_tickets) < max_ords; // Not more than allowed max orders
+                  && buy_count < max_ords; // Not more than allowed max orders
 
   bool should_sell = ma_m0 < ma_m1 // Downtrend, lower high-low
-                  && ((ArraySize(sell_tickets) == 0
-                        && (Bid > iOpen(Symbol(), tf, 0)
-                          || iTime(Symbol(), tf, 0) != candle_time))
-                      || (ArraySize(sell_tickets) > 0
-                        && Bid - sell_nearest_price > gap * ma_h_l / 100)) // Order gap, sell higher
+                  && ((sell_count == 0 && (Bid > iOpen(Symbol(), tf, 0) || iTime(Symbol(), tf, 0) != candle_time))
+                    || (sell_count > 0 && Bid - sell_nearest_price > gap * ma_h_l / 100)) // Order gap, sell higher
                   && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
-                  && ArraySize(sell_tickets) < max_ords; // Not more than allowed max orders
+                  && sell_count < max_ords; // Not more than allowed max orders
 
   if (should_buy) {
-    double _lots = inc == 0
-                    ? lots
-                    : ArraySize(buy_tickets) == 0
-                      ? lots
-                      : Ask > buy_nearest_price
-                        ? lots
-                        : NormalizeDouble(ArraySize(buy_tickets) * inc + lots, 2);
+    double _lots = inc == 0 ? lots
+                    : buy_count == 0 ? lots
+                      : Ask > buy_nearest_price ? lots
+                        : NormalizeDouble(buy_count * inc + lots, 2);
     if (0 < OrderSend(Symbol(), OP_BUY, _lots, Ask, 3, 0, 0, NULL, magic, 0)) {
-      if (ArraySize(buy_tickets) == 0) candle_time = iTime(Symbol(), tf, 0);
+      if (buy_count == 0) candle_time = iTime(Symbol(), tf, 0);
     }
   }
 
   if (should_sell) {
-    double _lots = inc == 0
-                    ? lots
-                    : ArraySize(sell_tickets) == 0
-                      ? lots
-                      : Bid < sell_nearest_price
-                        ? lots
-                        : NormalizeDouble(ArraySize(sell_tickets) * inc + lots, 2);
+    double _lots = inc == 0 ? lots
+                    : sell_count == 0 ? lots
+                      : Bid < sell_nearest_price ? lots
+                        : NormalizeDouble(sell_count * inc + lots, 2);
     if (0 < OrderSend(Symbol(), OP_SELL, _lots, Bid, 3, 0, 0, NULL, magic, 0)) {
-      if (ArraySize(sell_tickets) == 0) candle_time = iTime(Symbol(), tf, 0);
+      if (sell_count == 0) candle_time = iTime(Symbol(), tf, 0);
     }
   }
 }
