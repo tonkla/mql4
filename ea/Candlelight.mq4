@@ -136,16 +136,18 @@ void close_sell_orders() {
 void open() {
   bool should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
                   && ((ArraySize(buy_tickets) == 0
-                        && iTime(Symbol(), tf, 0) != candle_time) ||
-                      (ArraySize(buy_tickets) > 0
+                        && (Ask < iOpen(Symbol(), tf, 0)
+                          || iTime(Symbol(), tf, 0) != candle_time))
+                      || (ArraySize(buy_tickets) > 0
                         && buy_nearest_price - Ask > gap * ma_h_l / 100)) // Order gap, buy lower
                   && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
                   && ArraySize(buy_tickets) < max_ords; // Not more than allowed max orders
 
   bool should_sell = ma_m0 < ma_m1 // Downtrend, lower high-low
                   && ((ArraySize(sell_tickets) == 0
-                        && iTime(Symbol(), tf, 0) != candle_time) ||
-                      (ArraySize(sell_tickets) > 0
+                        && (Bid > iOpen(Symbol(), tf, 0)
+                          || iTime(Symbol(), tf, 0) != candle_time))
+                      || (ArraySize(sell_tickets) > 0
                         && Bid - sell_nearest_price > gap * ma_h_l / 100)) // Order gap, sell higher
                   && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
                   && ArraySize(sell_tickets) < max_ords; // Not more than allowed max orders
