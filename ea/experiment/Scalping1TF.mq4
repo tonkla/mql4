@@ -1,20 +1,19 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.1"
+#property version   "1.2"
 #property strict
 
 input string secret = "";// Secret spell to summon the EA
 input int magic     = 0; // ID of the EA
 input float lots    = 0; // Lots
-input int period    = 0; // Number of bars consumed by indicators
-input bool force_sl = 0; // Force stop loss when trend changed
+input int tf        = 0; // Timeframe (60=H1)
+input int period    = 0; // Period
 input int sl        = 0; // Auto stop loss (%H-L)
 input int tp        = 0; // Auto take profit (%H-L)
-input double xhl    = 0; // Threshold (%H-L)
 
 int buy_ticket, sell_ticket;
 double o, h, l, c;
-double ma_h, ma_l, hlx;
+double ma_h, ma_l, ma_h_l;
 datetime buy_closed_time, sell_closed_time;
 
 
@@ -48,13 +47,13 @@ void get_order() {
 }
 
 void get_vars() {
-  o = iOpen(Symbol(), PERIOD_H1, 0);
-  h = iHigh(Symbol(), PERIOD_H1, 0);
-  l = iLow(Symbol(), PERIOD_H1, 0);
-  c = iClose(Symbol(), PERIOD_H1, 0);
-  ma_h = iMA(Symbol(), PERIOD_H1, period, 0, MODE_SMA, PRICE_HIGH, 0);
-  ma_l = iMA(Symbol(), PERIOD_H1, period, 0, MODE_SMA, PRICE_LOW, 0);
-  hlx = (ma_h - ma_l) * xhl / 100;
+  o = iOpen(Symbol(), tf, 0);
+  h = iHigh(Symbol(), tf, 0);
+  l = iLow(Symbol(), tf, 0);
+  c = iClose(Symbol(), tf, 0);
+  ma_h = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_HIGH, 0);
+  ma_l = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
+  ma_h_l = ma_h - ma_l;
 }
 
 void close() {
@@ -67,20 +66,15 @@ void close() {
     sell_pips = OrderOpenPrice() - Ask;
 
   if (sl > 0 && (buy_pips < 0 || sell_pips < 0)) {
-    double _sl = (ma_h - ma_l) * sl / 100;
+    double _sl = sl * ma_h_l / 100;
     if (buy_pips < 0 && MathAbs(buy_pips) > _sl) close_buy_order();
     if (sell_pips < 0 && MathAbs(sell_pips) > _sl) close_sell_order();
   }
 
   if (tp > 0 && (buy_pips > 0 || sell_pips > 0)) {
-    double _tp = (ma_h - ma_l) * tp / 100;
+    double _tp = tp * ma_h_l / 100;
     if (buy_pips > _tp) close_buy_order();
     if (sell_pips > _tp) close_sell_order();
-  }
-
-  if (force_sl) {
-    if (o - c > hlx) close_buy_order();
-    if (c - o > hlx) close_sell_order();
   }
 }
 
@@ -95,14 +89,21 @@ void close_sell_order() {
 }
 
 void open() {
-  bool should_buy  = (c - o > hlx || (c > o && o - l > hlx)) // Moving up
-                  && Ask < ma_h - hlx // Buy zone
-                  && buy_closed_time < iTime(Symbol(), PERIOD_H1, 0) // Buy once per TF
+  int hidx = iHighest(Symbol(), 1, MODE_HIGH, 5, 0);
+  int lidx = iLowest(Symbol(), 1, MODE_LOW, 5, 0);
+  double _h = iHigh(Symbol(), 1, hidx);
+  double _l = iLow(Symbol(), 1, lidx);
+  double _t = 0.5 * (h - l);
+  double min = 0.2 * ma_h_l;
+
+  bool should_buy  = lidx > hidx && _h - Ask < Bid - _l && Bid - _l > _t // Moving up
+                  && Ask < ma_h - min // Limited buy zone
+                  && buy_closed_time < iTime(Symbol(), tf, 0) // Buy once per TF
                   && buy_ticket == 0; // Only one buy order
 
-  bool should_sell = (o - c > hlx || (o > c && h - o > hlx)) // Moving down
-                  && Bid > ma_l + hlx // Sell zone
-                  && sell_closed_time < iTime(Symbol(), PERIOD_H1, 0) // Sell once per TF
+  bool should_sell = lidx < hidx && _h - Ask > Bid - _l && _h - Ask > _t // Moving down
+                  && Bid > ma_l + min // Limited sell zone
+                  && sell_closed_time < iTime(Symbol(), tf, 0) // Sell once per TF
                   && sell_ticket == 0; // Only one sell order
 
   if (should_buy && 0 < OrderSend(Symbol(), OP_BUY, lots, Ask, 3, 0, 0, NULL, magic, 0))
