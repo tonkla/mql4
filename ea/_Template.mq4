@@ -8,7 +8,7 @@ input int magic     = 0;
 input double lots   = 0;
 input double inc    = 0;
 
-int buy_tickets[], sell_tickets[];
+int buy_tickets[], sell_tickets[], buy_count, sell_count;
 double buy_nearest_price, sell_nearest_price;
 
 
@@ -52,6 +52,9 @@ void get_orders() {
         break;
     }
   }
+
+  buy_count = ArraySize(buy_tickets);
+  sell_count = ArraySize(sell_tickets);
 }
 
 void get_vars() {
