@@ -66,24 +66,18 @@ void open() {
   bool should_sell = false;
 
   if (should_buy) {
-    double _lots = inc == 0
-                    ? lots
-                    : ArraySize(buy_tickets) == 0
-                      ? lots
-                      : Ask > buy_nearest_price
-                        ? lots
-                        : NormalizeDouble(ArraySize(buy_tickets) * inc + lots, 2);
+    double _lots = inc == 0 ? lots
+                    : buy_count == 0 ? lots
+                      : Ask > buy_nearest_price ? lots
+                        : NormalizeDouble(buy_count * inc + lots, 2);;
     if (0 < OrderSend(Symbol(), OP_BUY, _lots, Ask, 3, 0, 0, NULL, magic, 0)) return;
   }
 
   if (should_sell) {
-    double _lots = inc == 0
-                    ? lots
-                    : ArraySize(sell_tickets) == 0
-                      ? lots
-                      : Bid < sell_nearest_price
-                        ? lots
-                        : NormalizeDouble(ArraySize(sell_tickets) * inc + lots, 2);
+    double _lots = inc == 0 ? lots
+                    : sell_count == 0 ? lots
+                      : Bid < sell_nearest_price ? lots
+                        : NormalizeDouble(sell_count * inc + lots, 2);
     if (0 < OrderSend(Symbol(), OP_SELL, _lots, Bid, 3, 0, 0, NULL, magic, 0)) return;
   }
 }
