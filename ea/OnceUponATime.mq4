@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.1"
+#property version   "1.2"
 #property strict
 
 input string secret = "";// Secret spell to summon the EA
@@ -21,8 +21,8 @@ input double tp_acc = 0; // Acceptable total profit (%AccountBalance)
 
 int buy_tickets[], sell_tickets[], buy_count, sell_count;
 double buy_nearest_price, sell_nearest_price, pl;
-double ma_h0, ma_l0, ma_m0, ma_m1, ma_h_l;
-datetime buy_closed_time, sell_closed_time, candle_time;
+double ma_h0, ma_l0, ma_m0, ma_m1, ma_h_l, slope;
+datetime buy_closed_time, sell_closed_time;
 
 
 int OnInit() {
@@ -78,6 +78,7 @@ void get_vars() {
   ma_m0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   ma_m1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
   ma_h_l = ma_h0 - ma_l0;
+  slope = MathAbs(ma_m0 - ma_m1) / ma_h_l * 100;
 }
 
 void close() {
@@ -153,20 +154,20 @@ void close_sell_orders() {
 }
 
 void open() {
-  datetime _t0 = iTime(Symbol(), tf, 0);
-  double _open = iOpen(Symbol(), tf, 0);
+  if (slope < 20) return; // Sideway
+
   double _max = 0.1 * ma_h_l;
   double _gap = gap * ma_h_l / 100;
 
   bool should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
-                  && ((buy_count == 0 && (Ask < _open || (_t0 != candle_time && Ask < _open + _max)))
-                    || (buy_count > 0 && buy_nearest_price - Ask > _gap)) // Order gap, buy lower
+                  && ((buy_count == 0 && Ask < iOpen(Symbol(), tf, 0) + _max)
+                    || (buy_count > 0 && Ask < buy_nearest_price - _gap)) // Order gap, buy lower
                   && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
                   && buy_count < max_ords; // Not more than allowed max orders
 
   bool should_sell = ma_m0 < ma_m1 // Downtrend, lower high-low
-                  && ((sell_count == 0 && (Bid > _open || (_t0 != candle_time && Bid > _open - _max)))
-                    || (sell_count > 0 && Bid - sell_nearest_price > _gap)) // Order gap, sell higher
+                  && ((sell_count == 0 && Bid > iOpen(Symbol(), tf, 0) - _max)
+                    || (sell_count > 0 && Bid > sell_nearest_price + _gap)) // Order gap, sell higher
                   && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
                   && sell_count < max_ords; // Not more than allowed max orders
 
@@ -175,9 +176,7 @@ void open() {
                     : buy_count == 0 ? lots
                       : Ask > buy_nearest_price ? lots
                         : NormalizeDouble(buy_count * inc + lots, 2);
-    if (0 < OrderSend(Symbol(), OP_BUY, _lots, Ask, 3, 0, 0, NULL, magic, 0)) {
-      candle_time = _t0;
-    }
+    if (0 < OrderSend(Symbol(), OP_BUY, _lots, Ask, 3, 0, 0, NULL, magic, 0)) return;
   }
 
   if (should_sell) {
@@ -185,8 +184,6 @@ void open() {
                     : sell_count == 0 ? lots
                       : Bid < sell_nearest_price ? lots
                         : NormalizeDouble(sell_count * inc + lots, 2);
-    if (0 < OrderSend(Symbol(), OP_SELL, _lots, Bid, 3, 0, 0, NULL, magic, 0)) {
-      candle_time = _t0;
-    }
+    if (0 < OrderSend(Symbol(), OP_SELL, _lots, Bid, 3, 0, 0, NULL, magic, 0)) return;
   }
 }
