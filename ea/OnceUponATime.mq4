@@ -162,12 +162,14 @@ void open() {
   bool should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
                   && ((buy_count == 0 && Ask < iOpen(Symbol(), tf, 0) + _max)
                     || (buy_count > 0 && Ask < buy_nearest_price - _gap)) // Order gap, buy lower
+                  && Ask < ma_h0 - _max // Limited buy zone
                   && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
                   && buy_count < max_ords; // Not more than allowed max orders
 
   bool should_sell = ma_m0 < ma_m1 // Downtrend, lower high-low
                   && ((sell_count == 0 && Bid > iOpen(Symbol(), tf, 0) - _max)
                     || (sell_count > 0 && Bid > sell_nearest_price + _gap)) // Order gap, sell higher
+                  && Bid > ma_l0 + _max // Limited sell zone
                   && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
                   && sell_count < max_ords; // Not more than allowed max orders
 
