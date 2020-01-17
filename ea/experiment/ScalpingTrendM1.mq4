@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.4"
+#property version   "1.6"
 #property strict
 
 input string secret = "";// Secret spell to summon the EA
@@ -9,20 +9,22 @@ input double lots   = 0; // Initial lots
 input double inc    = 0; // Increased lots from the initial one (Martingale-like)
 input int tf        = 0; // Timeframe (60=H1)
 input int max_ords  = 0; // Max orders per side
-input int gap       = 0; // Gap between orders (%H-L)
+input int gap_bwd   = 0; // Backward gap between orders (%H-L)
+input int gap_fwd   = 0; // Forward gap between orders (%H-L)
 input int sleep     = 0; // Seconds to sleep after loss
 input int time_sl   = 0; // Seconds to stop since open
-input bool force_sl = 0; // Force stop loss when trend changed
+input bool mm_sl    = 0; // Force stop loss when trend changed
+input bool hl_sl    = 0; // Force stop loss when the order exceeds H/Ld
 input int sl        = 0; // Auto stop loss (%H-L)
 input int tp        = 0; // Auto take profit (%H-L)
-input double sl_acc = 0; // Acceptable total loss (%AccountBalance)
-input double tp_acc = 0; // Acceptable total profit (%AccountBalance)
+input double acc_sl = 0; // Acceptable total loss (%AccountBalance)
+input double acc_tp = 0; // Acceptable total profit (%AccountBalance)
 
 int buy_tickets[], sell_tickets[], buy_count, sell_count;
 int calc_round;
 double buy_nearest_price, sell_nearest_price, pl;
-double h0, h1, h2, l0, l1, l2, m0, m1;
-double ma_h0, ma_l0, h_l, slope;
+double h0, h1, l0, l1, m0, m1;
+double ma_h0, ma_l0, ma_h_l, slope;
 datetime buy_closed_time, sell_closed_time;
 
 
@@ -78,32 +80,42 @@ void get_vars() {
   l0 = iLow(Symbol(), 1, iLowest(Symbol(), 1, MODE_LOW, tf, 0));
   h1 = iHigh(Symbol(), 1, iHighest(Symbol(), 1, MODE_HIGH, tf, tf));
   l1 = iLow(Symbol(), 1, iLowest(Symbol(), 1, MODE_LOW, tf, tf));
-  h2 = iHigh(Symbol(), 1, iHighest(Symbol(), 1, MODE_HIGH, tf, tf * 2));
-  l2 = iLow(Symbol(), 1, iLowest(Symbol(), 1, MODE_LOW, tf, tf * 2));
 
   m0 = ((h0 - l0) / 2) + l0;
   m1 = ((h1 - l1) / 2) + l1;
-  ma_h0 = (h0 + h1 + h2) / 3;
-  ma_l0 = (l0 + l1 + l2) / 3;
-  h_l = h0 - l0;
-  // slope = MathAbs(m0 - m1) / h_l * 100;
-  slope = MathAbs(iMA(Symbol(), tf, 3, 0, MODE_LWMA, PRICE_MEDIAN, 0) -
-                  iMA(Symbol(), tf, 3, 0, MODE_LWMA, PRICE_MEDIAN, 1)) /
-            iATR(Symbol(), tf, 3, 0) * 100;
+  ma_h0 = (h0 + h1) / 2;
+  ma_l0 = (l0 + l1) / 2;
+  ma_h_l = ma_h0 - ma_l0;
+  slope = MathAbs(m0 - m1) / ma_h_l * 100;
 
   if (calc_round < 20) calc_round++;
 }
 
 void close() {
-  if ((sl_acc > 0 && pl < 0 && MathAbs(pl) / AccountBalance() * 100 > sl_acc) ||
-      (tp_acc > 0 && pl / AccountBalance() * 100 > tp_acc)) {
+  if ((acc_sl > 0 && pl < 0 && MathAbs(pl) / AccountBalance() * 100 > acc_sl) ||
+      (acc_tp > 0 && pl / AccountBalance() * 100 > acc_tp)) {
     close_buy_orders();
     close_sell_orders();
   }
 
-  if (force_sl) {
+  if (mm_sl) {
     if (m0 < m1 && buy_count > 0) close_buy_orders();
     if (m0 > m1 && sell_count > 0) close_sell_orders();
+  }
+
+  if (hl_sl) {
+    for (int i = 0; i < buy_count; i++) {
+      if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
+      if (OrderOpenPrice() > ma_h0
+          && OrderClose(OrderTicket(), OrderLots(), Bid, 3))
+        buy_closed_time = TimeCurrent();
+    }
+    for (int i = 0; i < sell_count; i++) {
+      if (!OrderSelect(sell_tickets[i], SELECT_BY_TICKET)) continue;
+      if (OrderOpenPrice() < ma_l0
+          && OrderClose(OrderTicket(), OrderLots(), Ask, 3))
+        sell_closed_time = TimeCurrent();
+    }
   }
 
   if (time_sl > 0) {
@@ -120,7 +132,7 @@ void close() {
   }
 
   if (sl > 0) {
-    double _sl = sl * h_l / 100;
+    double _sl = sl * ma_h_l / 100;
     for (int i = 0; i < buy_count; i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (OrderProfit() < 0 && OrderOpenPrice() - Bid > _sl
@@ -136,7 +148,7 @@ void close() {
   }
 
   if (tp > 0) {
-    double _tp = tp * h_l / 100;
+    double _tp = tp * ma_h_l / 100;
     for (int i = 0; i < buy_count; i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (Bid - OrderOpenPrice() > _tp
@@ -165,33 +177,32 @@ void close_sell_orders() {
 }
 
 void open() {
-  // It needs time to fetch previous bars of M1
-  if (calc_round < 20) return;
-  // Sideway
-  if (slope < 20) return;
-
-  double _min = h_l * 0.2;
-  double _gap = h_l * gap / 100;
+  if (calc_round < 20) return; // It needs time to fetch previous bars of M1
+  if (slope < 20) return; // Sideway
 
   int hidx = iHighest(Symbol(), 1, MODE_HIGH, 5, 0);
   int lidx = iLowest(Symbol(), 1, MODE_LOW, 5, 0);
   double h = iHigh(Symbol(), 1, hidx);
   double l = iLow(Symbol(), 1, lidx);
-  double t = 0.5 * (h - l);
+  double t = 0.4 * (h - l);
 
   bool should_buy  = m0 > m1 // Uptrend, higher high-low
-                  && lidx > hidx && h - Ask < Bid - l && Bid - l > t // Moving up
-                  && Ask < ma_h0 - _min // Limited buy zone
+                  && (hidx == 0 && lidx > hidx && h - Ask < Bid - l && Bid - l > t) // Moving up
+                  && Ask < ma_h0 - (0.2 * ma_h_l) // Highest buy zone
                   && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
-                  && (buy_nearest_price == 0 || buy_nearest_price - Ask > _gap) // Order gap, buy lower
-                  && buy_count < max_ords; // Not more than allowed max orders
+                  && buy_count < max_ords // Allowed max orders
+                  && (buy_count == 0 ||
+                      ((gap_bwd > 0 && buy_nearest_price - Ask > gap_bwd * ma_h_l / 100) ||
+                       (gap_fwd > 0 && Ask - buy_nearest_price > gap_fwd * ma_h_l / 100))); // Orders ga
 
   bool should_sell = m0 < m1 // Downtrend, lower high-low
-                  && lidx < hidx && h - Ask > Bid - l && h - Ask > t // Moving down
-                  && Bid > ma_l0 + _min // Limited sell zone
+                  && (lidx == 0 && lidx < hidx && h - Ask > Bid - l && h - Ask > t) // Moving down
+                  && Bid > ma_l0 + (0.2 * ma_h_l) // Lowest sell zone
                   && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
-                  && (sell_nearest_price == 0 || Bid - sell_nearest_price > _gap) // Order gap, sell higher
-                  && sell_count < max_ords; // Not more than allowed max orders
+                  && sell_count < max_ords // Allowed max orders
+                  && (sell_count == 0 ||
+                      ((gap_bwd > 0 && Bid - sell_nearest_price > gap_bwd * ma_h_l / 100) ||
+                       (gap_fwd > 0 && sell_nearest_price - Bid > gap_fwd * ma_h_l / 100))); // Orders gap
 
   if (should_buy) {
     double _lots = inc == 0 ? lots
