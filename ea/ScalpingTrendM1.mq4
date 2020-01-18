@@ -7,18 +7,19 @@ input string secret = "";// Secret spell to summon the EA
 input int magic     = 0; // ID of the EA
 input double lots   = 0; // Initial lots
 input double inc    = 0; // Increased lots from the initial one (Martingale-like)
-input int tf        = 0; // Timeframe (60=H1)
-input int max_ords  = 0; // Max orders per side
+input int tf        = 0; // Timeframe
+input int orders    = 0; // Limited orders per side
 input int gap_bwd   = 0; // Backward gap between orders (%H-L)
 input int gap_fwd   = 0; // Forward gap between orders (%H-L)
-input int sleep     = 0; // Seconds to sleep after loss
+input int sleep     = 0; // Seconds to sleep since loss
 input int time_sl   = 0; // Seconds to stop since open
-input bool mm_sl    = 0; // Force stop loss when trend changed
-input bool hl_sl    = 0; // Force stop loss when the order exceeds H/Ld
 input int sl        = 0; // Auto stop loss (%H-L)
 input int tp        = 0; // Auto take profit (%H-L)
 input double acc_sl = 0; // Acceptable total loss (%AccountBalance)
 input double acc_tp = 0; // Acceptable total profit (%AccountBalance)
+input bool trend_sl = 0; // Force SL when trend changed
+input bool hl_sl    = 0; // Force SL when the order exceeds H/L
+input bool friday   = 0; // Close all on late Friday
 
 int buy_tickets[], sell_tickets[], buy_count, sell_count;
 int calc_round;
@@ -92,13 +93,19 @@ void get_vars() {
 }
 
 void close() {
-  if ((acc_sl > 0 && pl < 0 && MathAbs(pl) / AccountBalance() * 100 > acc_sl) ||
-      (acc_tp > 0 && pl / AccountBalance() * 100 > acc_tp)) {
-    close_buy_orders();
-    close_sell_orders();
+  if (friday && TimeHour(TimeGMT()) >= 21 && DayOfWeek() == 5) {
+    if (buy_count > 0) close_buy_orders();
+    if (sell_count > 0) close_sell_orders();
+    return;
   }
 
-  if (mm_sl) {
+  if ((acc_sl > 0 && pl < 0 && MathAbs(pl) / AccountBalance() * 100 > acc_sl) ||
+      (acc_tp > 0 && pl / AccountBalance() * 100 > acc_tp)) {
+    if (buy_count > 0) close_buy_orders();
+    if (sell_count > 0) close_sell_orders();
+  }
+
+  if (trend_sl) {
     if (m0 < m1 && buy_count > 0) close_buy_orders();
     if (m0 > m1 && sell_count > 0) close_sell_orders();
   }
@@ -179,6 +186,7 @@ void close_sell_orders() {
 void open() {
   if (calc_round < 20) return; // It needs time to fetch previous bars of M1
   if (slope < 20) return; // Sideway
+  if (friday && TimeHour(TimeGMT()) >= 21 && DayOfWeek() == 5) return; // Rest on Friday, 21:00 GMT
 
   int hidx = iHighest(Symbol(), 1, MODE_HIGH, 5, 0);
   int lidx = iLowest(Symbol(), 1, MODE_LOW, 5, 0);
@@ -187,19 +195,19 @@ void open() {
   double t = 0.4 * (h - l);
 
   bool should_buy  = m0 > m1 // Uptrend, higher high-low
-                  && (hidx == 0 && lidx > hidx && h - Ask < Bid - l && Bid - l > t) // Moving up
+                  && (hidx == 0 && h - Ask < Bid - l && Bid - l > t) // Moving up
                   && Ask < ma_h0 - (0.2 * ma_h_l) // Highest buy zone
                   && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
-                  && buy_count < max_ords // Allowed max orders
+                  && buy_count < orders // Limited buy orders
                   && (buy_count == 0 ||
                       ((gap_bwd > 0 && buy_nearest_price - Ask > gap_bwd * ma_h_l / 100) ||
-                       (gap_fwd > 0 && Ask - buy_nearest_price > gap_fwd * ma_h_l / 100))); // Orders ga
+                       (gap_fwd > 0 && Ask - buy_nearest_price > gap_fwd * ma_h_l / 100))); // Orders gap
 
   bool should_sell = m0 < m1 // Downtrend, lower high-low
-                  && (lidx == 0 && lidx < hidx && h - Ask > Bid - l && h - Ask > t) // Moving down
+                  && (lidx == 0 && h - Ask > Bid - l && h - Ask > t) // Moving down
                   && Bid > ma_l0 + (0.2 * ma_h_l) // Lowest sell zone
                   && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
-                  && sell_count < max_ords // Allowed max orders
+                  && sell_count < orders // Limited sell orders
                   && (sell_count == 0 ||
                       ((gap_bwd > 0 && Bid - sell_nearest_price > gap_bwd * ma_h_l / 100) ||
                        (gap_fwd > 0 && sell_nearest_price - Bid > gap_fwd * ma_h_l / 100))); // Orders gap

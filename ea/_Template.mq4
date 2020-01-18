@@ -72,7 +72,7 @@ void open() {
     double _lots = inc == 0 ? lots
                     : buy_count == 0 ? lots
                       : Ask > buy_nearest_price ? lots
-                        : NormalizeDouble(buy_count * inc + lots, 2);;
+                        : NormalizeDouble(buy_count * inc + lots, 2);
     if (0 < OrderSend(Symbol(), OP_BUY, _lots, Ask, 3, 0, 0, NULL, magic, 0)) return;
   }
 
