@@ -93,16 +93,15 @@ void open() {
   int lidx = iLowest(Symbol(), 1, MODE_LOW, 5, 0);
   double _h = iHigh(Symbol(), 1, hidx);
   double _l = iLow(Symbol(), 1, lidx);
-  double _t = 0.5 * (h - l);
-  double min = 0.2 * ma_h_l;
+  double _t = 0.5 * (_h - _l);
 
-  bool should_buy  = lidx > hidx && _h - Ask < Bid - _l && Bid - _l > _t // Moving up
-                  && Ask < ma_h - min // Limited buy zone
+  bool should_buy  = hidx == 0 && _h - Ask < Bid - _l && Bid - _l > _t // Moving up
+                  && Ask < ma_h - (0.2 * ma_h_l) // Limited buy zone
                   && buy_closed_time < iTime(Symbol(), tf, 0) // Buy once per TF
                   && buy_ticket == 0; // Only one buy order
 
-  bool should_sell = lidx < hidx && _h - Ask > Bid - _l && _h - Ask > _t // Moving down
-                  && Bid > ma_l + min // Limited sell zone
+  bool should_sell = lidx == 0 && _h - Ask > Bid - _l && _h - Ask > _t // Moving down
+                  && Bid > ma_l + (0.2 * ma_h_l) // Limited sell zone
                   && sell_closed_time < iTime(Symbol(), tf, 0) // Sell once per TF
                   && sell_ticket == 0; // Only one sell order
 
