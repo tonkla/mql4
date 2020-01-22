@@ -104,8 +104,8 @@ void close() {
   }
 
   if (trend_sl) {
-    if (ma_m0 < ma_m1 && buy_count > 0) close_buy_orders();
-    if (ma_m0 > ma_m1 && sell_count > 0) close_sell_orders();
+    if (ma_m0 < ma_m1 && (macd ? macd_m0 < macd_m1 : true) && buy_count > 0) close_buy_orders();
+    if (ma_m0 > ma_m1 && (macd ? macd_m0 > macd_m1 : true) && sell_count > 0) close_sell_orders();
   }
 
   if (hl_sl) {
@@ -185,15 +185,11 @@ void open() {
   if (slope < 20) return; // Sideway
   if (friday && TimeHour(TimeGMT()) >= 21 && DayOfWeek() == 5) return; // Rest on Friday, 21:00 GMT
 
-  int hidx = iHighest(Symbol(), 1, MODE_HIGH, 5, 0);
-  int lidx = iLowest(Symbol(), 1, MODE_LOW, 5, 0);
-  double h = iHigh(Symbol(), 1, hidx);
-  double l = iLow(Symbol(), 1, lidx);
-  double t = 0.4 * (h - l);
+  double _m0 = iMA(Symbol(), 5, 4, 0, MODE_LWMA, PRICE_MEDIAN, 0);
+  double _m1 = iMA(Symbol(), 5, 4, 0, MODE_LWMA, PRICE_MEDIAN, 1);
 
-  bool should_buy  = ma_m0 > ma_m1 // Uptrend, higher high-low
+  bool should_buy  = ma_m0 > ma_m1 && _m0 > _m1 // Uptrend, higher high-low
                   && (macd ? macd_m0 > macd_m1 : true)
-                  && (hidx == 0 && h - Ask < Bid - l && Bid - l > t) // Moving up
                   && Ask < ma_h0 - (0.2 * ma_h_l) // Highest buy zone
                   && TimeCurrent() - buy_closed_time > sleep // Take a break after loss
                   && buy_count < orders // Limited buy orders
@@ -201,9 +197,8 @@ void open() {
                       ((gap_bwd > 0 && buy_nearest_price - Ask > gap_bwd * ma_h_l / 100) ||
                        (gap_fwd > 0 && Ask - buy_nearest_price > gap_fwd * ma_h_l / 100))); // Orders gap
 
-  bool should_sell = ma_m0 < ma_m1 // Downtrend, lower high-low
+  bool should_sell = ma_m0 < ma_m1 && _m0 < _m1 // Downtrend, lower high-low
                   && (macd ? macd_m0 < macd_m1 : true)
-                  && (lidx == 0 && h - Ask > Bid - l && h - Ask > t) // Moving down
                   && Bid > ma_l0 + (0.2 * ma_h_l) // Lowest sell zone
                   && TimeCurrent() - sell_closed_time > sleep // Take a break after loss
                   && sell_count < orders // Limited sell orders
