@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.3"
+#property version   "1.4"
 #property strict
 
 input string secret = "";// Secret spell to summon the EA
@@ -16,16 +16,16 @@ input int gap_bwd   = 0; // Backward gap between orders (%ATR)
 input int gap_fwd   = 0; // Forward gap between orders (%ATR)
 input int sleep     = 0; // Seconds to sleep since loss
 input int time_sl   = 0; // Seconds to close since open
-input int sl        = 0; // Stop loss in %ATR
-input int tp        = 0; // Take profit in %ATR
-input double usd_sl = 0; // Stop loss in $Currency
-input double usd_tp = 0; // Tak profit in $Currency
+input int sl        = 0; // Single stop loss in %ATR
+input int tp        = 0; // Single take profit in %ATR
+input int sum_sl    = 0; // Total stop loss in %ATR
+input int sum_tp    = 0; // Total take profit in %ATR
 input bool trend_sl = 0; // Stop loss when trend changed
 input bool hl_sl    = 0; // Stop loss when the order exceeds H/L
 input bool friday   = 0; // Close all on late Friday
 
 int buy_tickets[], sell_tickets[], buy_count, sell_count;
-double buy_nearest_price, sell_nearest_price, pl;
+double buy_nearest_price, sell_nearest_price, buy_pl, sell_pl;
 double ma_h0, ma_l0, ma_m0, ma_m1, ma_h_l, slope;
 datetime buy_closed_time, sell_closed_time;
 
@@ -47,7 +47,8 @@ void get_orders() {
   ArrayFree(sell_tickets);
   buy_nearest_price = 0;
   sell_nearest_price = 0;
-  pl = 0;
+  buy_pl = 0;
+  sell_pl = 0;
 
   for (int i = OrdersTotal() - 1; i >= 0; i--) {
     if (!OrderSelect(i, SELECT_BY_POS)) continue;
@@ -60,6 +61,7 @@ void get_orders() {
         if (buy_nearest_price == 0 || MathAbs(OrderOpenPrice() - Ask) < MathAbs(buy_nearest_price - Ask)) {
           buy_nearest_price = OrderOpenPrice();
         }
+        buy_pl += Bid - OrderOpenPrice();
         break;
       case OP_SELL:
         size = ArraySize(sell_tickets);
@@ -68,9 +70,9 @@ void get_orders() {
         if (sell_nearest_price == 0 || MathAbs(OrderOpenPrice() - Bid) < MathAbs(sell_nearest_price - Bid)) {
           sell_nearest_price = OrderOpenPrice();
         }
+        sell_pl += OrderOpenPrice() - Ask;
         break;
     }
-    pl += OrderProfit() + OrderCommission() + OrderSwap();
   }
 
   buy_count = ArraySize(buy_tickets);
@@ -91,11 +93,6 @@ void close() {
     if (buy_count > 0) close_buy_orders();
     if (sell_count > 0) close_sell_orders();
     return;
-  }
-
-  if ((usd_sl > 0 && pl < 0 && MathAbs(pl) > usd_sl) || (usd_tp > 0 && pl > usd_tp)) {
-    if (buy_count > 0) close_buy_orders();
-    if (sell_count > 0) close_sell_orders();
   }
 
   if (trend_sl) {
@@ -129,6 +126,13 @@ void close() {
       if (TimeCurrent() - OrderOpenTime() > time_sl
           && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
     }
+  }
+
+  double pl = buy_pl + sell_pl;
+  if ((sum_tp > 0 && pl > sum_tp * ma_h_l / 100) ||
+      (sum_sl > 0 && pl < 0 && MathAbs(pl) > sum_sl * ma_h_l / 100)) {
+    if (buy_count > 0) close_buy_orders();
+    if (sell_count > 0) close_sell_orders();
   }
 
   if (sl > 0) {
