@@ -12,16 +12,16 @@ input int tf_2      = 0; // Fast timeframe
 input int period    = 0; // Period for main timeframe
 input int period_2  = 0; // Period for fast timeframe
 input int orders    = 0; // Limited orders per side
-input int gap_bwd   = 0; // Backward gap between orders (%H-L)
-input int gap_fwd   = 0; // Forward gap between orders (%H-L)
+input int gap_bwd   = 0; // Backward gap between orders (%ATR)
+input int gap_fwd   = 0; // Forward gap between orders (%ATR)
 input int sleep     = 0; // Seconds to sleep since loss
 input int time_sl   = 0; // Seconds to close since open
-input int sl        = 0; // Auto stop loss (%H-L)
-input int tp        = 0; // Auto take profit (%H-L)
-input double acc_sl = 0; // Acceptable total loss (%AccountBalance)
-input double acc_tp = 0; // Acceptable total profit (%AccountBalance)
-input bool trend_sl = 0; // Force SL when trend changed
-input bool hl_sl    = 0; // Force SL when the order exceeds H/L
+input int sl        = 0; // Stop loss in %ATR
+input int tp        = 0; // Take profit in %ATR
+input double usd_sl = 0; // Stop loss in $Currency
+input double usd_tp = 0; // Tak profit in $Currency
+input bool trend_sl = 0; // Stop loss when trend changed
+input bool hl_sl    = 0; // Stop loss when the order exceeds H/L
 input bool friday   = 0; // Close all on late Friday
 
 int buy_tickets[], sell_tickets[], buy_count, sell_count;
@@ -93,8 +93,7 @@ void close() {
     return;
   }
 
-  if ((acc_sl > 0 && pl < 0 && MathAbs(pl) / AccountBalance() * 100 > acc_sl) ||
-      (acc_tp > 0 && pl / AccountBalance() * 100 > acc_tp)) {
+  if ((usd_sl > 0 && pl < 0 && MathAbs(pl) > usd_sl) || (usd_tp > 0 && pl > usd_tp)) {
     if (buy_count > 0) close_buy_orders();
     if (sell_count > 0) close_sell_orders();
   }
