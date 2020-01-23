@@ -120,21 +120,18 @@ void open() {
   }
 
   double _open = iOpen(Symbol(), PERIOD_D1, 0);
+  double _gap = gap * atr / 100;
   double min = 0.05 * atr;
   double max = 0.20 * atr;
 
   bool should_buy  = Ask > _open + min
                   && TimeCurrent() - buy_closed_time > 1800
-                  && (buy_count == 0
-                        ? Ask < _open + max
-                        : Ask - buy_nearest_price > gap * atr / 100)
+                  && (buy_count == 0 ? Ask < _open + max : Ask > buy_nearest_price + _gap)
                   && buy_count < orders;
 
   bool should_sell = Bid < _open - min
                   && TimeCurrent() - sell_closed_time > 1800
-                  && (sell_count == 0
-                        ? Bid > _open - max
-                        : sell_nearest_price - Bid > gap * atr / 100)
+                  && (sell_count == 0 ? Bid > _open - max : Bid < sell_nearest_price - _gap)
                   && sell_count < orders;
 
   if (should_buy) {
