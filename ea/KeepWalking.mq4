@@ -75,14 +75,9 @@ void get_vars() {
 
 void close() {
   if (friday && TimeHour(TimeGMT()) >= 21 && DayOfWeek() == 5) {
-    if (buy_count > 0) {
-      close_buy_orders();
-      start = false;
-    }
-    if (sell_count > 0) {
-      close_sell_orders();
-      start = false;
-    }
+    if (buy_count > 0) close_buy_orders();
+    if (sell_count > 0) close_sell_orders();
+    start = false;
     return;
   }
 
