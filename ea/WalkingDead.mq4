@@ -14,8 +14,9 @@ input int stop_gmt  = 0; // Stopping hour in GMT
 input int orders    = 0; // Maximum orders per side
 input int gap       = 0; // Gap between orders in %ATR
 input int sleep     = 0; // Seconds to sleep since loss
+input bool force_sl = 0; // Stop the old opposite one
+input int sl        = 0; // Stop loss in %ATR
 input int tp        = 0; // Take profit in %ATR
-input bool sl       = 0; // Stop the old opposite one
 
 int buy_tickets[], sell_tickets[], buy_count, sell_count;
 double buy_nearest_price, sell_nearest_price, buy_pl, sell_pl;
@@ -89,16 +90,20 @@ void close() {
     return;
   }
 
-  if (sl && buy_count > 0 && sell_count > 0) {
+  if (force_sl && buy_count > 0 && sell_count > 0) {
     double _sl = 0.05 * ma_hl;
     if (buy_pl < 0 && sell_pl > _sl) close_buy_orders();
     if (sell_pl < 0 && buy_pl > _sl) close_sell_orders();
   }
 
+  if (sl > 0 && buy_pl + sell_pl < 0 && MathAbs(buy_pl + sell_pl) > sl * ma_hl / 100) {
+    if (buy_count > 0) close_buy_orders();
+    if (sell_count > 0) close_sell_orders();
+  }
+
   if (tp > 0 && buy_pl + sell_pl > tp * ma_hl / 100) {
     if (buy_count > 0) close_buy_orders();
     if (sell_count > 0) close_sell_orders();
-    // start = false;
   }
 }
 
@@ -117,7 +122,7 @@ void close_sell_orders() {
 }
 
 void open() {
-  if (!start) {
+  if (start_gmt >= 0 && !start) {
     if (TimeHour(TimeGMT()) == start_gmt) start = true;
     else return;
   }
@@ -130,12 +135,12 @@ void open() {
   double m1 = iMA(Symbol(), 5, 4, 0, MODE_LWMA, PRICE_MEDIAN, 1);
 
   bool should_buy  = m0 > m1
-                  && (buy_count == 0 ? Ask < buy_start : Ask > buy_nearest_price + _gap)
+                  && (buy_count == 0 ? Ask < buy_start : MathAbs(Ask - buy_nearest_price) > _gap)
                   && buy_count < orders
                   && TimeCurrent() - buy_closed_time > sleep;
 
   bool should_sell = m0 < m1
-                  && (sell_count == 0 ? Bid > sell_start : Bid < sell_nearest_price - _gap)
+                  && (sell_count == 0 ? Bid > sell_start : MathAbs(Bid - sell_nearest_price) > _gap)
                   && sell_count < orders
                   && TimeCurrent() - sell_closed_time > sleep;
 
