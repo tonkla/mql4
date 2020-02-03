@@ -7,12 +7,13 @@ input string secret = "";// Secret spell to summon the EA
 input int magic     = 0; // ID of the EA
 input double lots   = 0; // Initial lots
 input double inc    = 0; // Increased lots from the initial one (Martingale-like)
-input int start_gmt = 0; // GMT hour to start
-input int orders    = 0; // Limited orders per side
+input int start_gmt = 0; // Starting hour in GMT
+input int stop_gmt  = 0; // Stopping hour in GMT
+input int orders    = 0; // Maximum orders per side
 input int gap       = 0; // Gap between orders in %ATR
+input int sleep     = 0; // Seconds to sleep since loss
 input int tp        = 0; // Take profit in %ATR
 input bool sl       = 0; // Stop the old opposite one
-input bool friday   = 0; // Close all on late Friday
 
 int buy_tickets[], sell_tickets[], buy_count, sell_count;
 double buy_nearest_price, sell_nearest_price, buy_pl, sell_pl, atr;
@@ -74,7 +75,7 @@ void get_vars() {
 }
 
 void close() {
-  if (friday && TimeHour(TimeGMT()) >= 21 && DayOfWeek() == 5) {
+  if (stop_gmt >= 0 && TimeHour(TimeGMT()) >= stop_gmt) {
     if (buy_count > 0) close_buy_orders();
     if (sell_count > 0) close_sell_orders();
     start = false;
@@ -120,12 +121,12 @@ void open() {
   double max = 0.20 * atr;
 
   bool should_buy  = Ask > _open + min
-                  && TimeCurrent() - buy_closed_time > 1800
+                  && TimeCurrent() - buy_closed_time > sleep
                   && (buy_count == 0 ? Ask < _open + max : Ask > buy_nearest_price + _gap)
                   && buy_count < orders;
 
   bool should_sell = Bid < _open - min
-                  && TimeCurrent() - sell_closed_time > 1800
+                  && TimeCurrent() - sell_closed_time > sleep
                   && (sell_count == 0 ? Bid > _open - max : Bid < sell_nearest_price - _gap)
                   && sell_count < orders;
 
