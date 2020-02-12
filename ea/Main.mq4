@@ -255,18 +255,15 @@ void open() {
   if (magic_3 > 0) {
     _magic = magic_3;
 
-    double _open = iOpen(Symbol(), tf, 0);
-    double min = 0.1 * ma_hl;
-
     should_buy  = m0 > m1
                && (buy_count == 0
-                    ? Ask < _open - min
+                    ? Ask < iOpen(Symbol(), tf, 0)
                     : (gap_bwd > 0 && buy_nearest_price - Ask > _gap_bwd) ||
                       (gap_fwd > 0 && Ask - buy_nearest_price > _gap_fwd));
 
     should_sell = m0 < m1
                && (sell_count == 0
-                    ? Bid > _open + min
+                    ? Bid > iOpen(Symbol(), tf, 0)
                     : (gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
                       (gap_fwd > 0 && sell_nearest_price - Bid > _gap_fwd));
   }
