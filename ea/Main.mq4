@@ -9,7 +9,7 @@ input int magic_2     = 0; // Strategy: counter trend
 input int magic_3     = 0; // Strategy: pivot at the open
 input double lots     = 0; // Initial lots
 input double inc      = 0; // Increased lots from the initial one
-input int max_orders  = 0; // Maximum orders per side per strategy
+input int max_orders  = 0; // Maximum orders per side
 input int tf          = 0; // Main timeframe
 input int period      = 0; // Period for main timeframe
 input int tf_2        = 0; // Fast timeframe
@@ -154,8 +154,11 @@ void close() {
   }
 
   double pl = buy_pl + sell_pl;
-  if ((sum_tp > 0 && pl > sum_tp * ma_hl / 100) ||
-      (sum_sl > 0 && pl < 0 && MathAbs(pl) > sum_sl * ma_hl / 100)) {
+  if (sum_sl > 0 && pl < 0 && MathAbs(pl) > sum_sl * ma_hl / 100) {
+    if (buy_pl < 0) close_buy_orders();
+    if (sell_pl < 0) close_sell_orders();
+  }
+  if (sum_tp > 0 && pl > sum_tp * ma_hl / 100) {
     if (buy_count > 0) close_buy_orders();
     if (sell_count > 0) close_sell_orders();
   }
@@ -223,16 +226,14 @@ void open() {
     _magic = magic_1;
 
     should_buy  = ma_m0 > ma_m1 && m0 > m1
-               && Ask < ma_h0 - (0.2 * ma_hl)
                && (buy_count == 0
-                    ? Ask < iOpen(Symbol(), tf, 0) + (0.1 * ma_hl)
+                    ? Ask < ma_h0 - (0.25 * ma_hl)
                     : (gap_bwd > 0 && buy_nearest_price - Ask > _gap_bwd) ||
                       (gap_fwd > 0 && Ask - buy_nearest_price > _gap_fwd));
 
     should_sell = ma_m0 < ma_m1 && m0 < m1
-               && Bid > ma_l0 + (0.2 * ma_hl)
                && (sell_count == 0
-                    ? Bid > iOpen(Symbol(), tf, 0) - (0.1 * ma_hl)
+                    ? Bid > ma_l0 + (0.25 * ma_hl)
                     : (gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
                       (gap_fwd > 0 && sell_nearest_price - Bid > _gap_fwd));
   }
