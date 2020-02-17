@@ -1,12 +1,11 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.1"
+#property version   "1.2"
 #property strict
 
 input string secret   = "";// Secret spell to summon the EA
-input int magic_1     = 0; // Strategy: follow trend
-input int magic_2     = 0; // Strategy: counter trend
-input int magic_3     = 0; // Strategy: pivot at the open
+input int magic_1     = 0; // ID for strategy: follow trend
+input int magic_2     = 0; // ID for strategy: pivot at the open
 input double lots     = 0; // Initial lots
 input double inc      = 0; // Increased lots from the initial one
 input int max_orders  = 0; // Maximum orders per side
@@ -14,6 +13,7 @@ input int tf          = 0; // Main timeframe
 input int period      = 0; // Period for main timeframe
 input int tf_2        = 0; // Fast timeframe
 input int period_2    = 0; // Period for fast timeframe
+input int min_hl      = 0; // Minimum range from H/L (%ATR)
 input int min_slope   = 0; // Minimum slope to be trend
 input int gap_bwd     = 0; // Backward gap between orders (%ATR)
 input int gap_fwd     = 0; // Forward gap between orders (%ATR)
@@ -227,34 +227,20 @@ void open() {
 
     should_buy  = ma_m0 > ma_m1 && m0 > m1
                && (buy_count == 0
-                    ? Ask < ma_h0 - (0.25 * ma_hl)
+                    ? Ask < ma_h0 - (min_hl * ma_hl / 100)
                     : (gap_bwd > 0 && buy_nearest_price - Ask > _gap_bwd) ||
                       (gap_fwd > 0 && Ask - buy_nearest_price > _gap_fwd));
 
     should_sell = ma_m0 < ma_m1 && m0 < m1
                && (sell_count == 0
-                    ? Bid > ma_l0 + (0.25 * ma_hl)
+                    ? Bid > ma_l0 + (min_hl * ma_hl / 100)
                     : (gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
                       (gap_fwd > 0 && sell_nearest_price - Bid > _gap_fwd));
   }
 
-  // Strategy: counter trend
+  // Strategy: pivot at the open
   if (magic_2 > 0) {
     _magic = magic_2;
-
-    double buy_start  = ma_l0 + MathAbs(ma_m0 - ma_m1);
-    double sell_start = ma_h0 - MathAbs(ma_m0 - ma_m1);
-
-    should_buy  = m0 > m1
-               && (buy_count == 0 ? Ask < buy_start : MathAbs(Ask - buy_nearest_price) > _gap_fwd);
-
-    should_sell = m0 < m1
-               && (sell_count == 0 ? Bid > sell_start : MathAbs(Bid - sell_nearest_price) > _gap_fwd);
-  }
-
-  // Strategy: pivot at the open
-  if (magic_3 > 0) {
-    _magic = magic_3;
 
     should_buy  = m0 > m1
                && (buy_count == 0
