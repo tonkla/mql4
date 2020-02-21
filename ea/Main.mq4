@@ -1,11 +1,10 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.2"
+#property version   "1.3"
 #property strict
 
 input string secret   = "";// Secret spell to summon the EA
 input int magic_1     = 0; // ID for strategy: follow trend
-input int magic_2     = 0; // ID for strategy: pivot at the open
 input double lots     = 0; // Initial lots
 input double inc      = 0; // Increased lots from the initial one
 input int max_orders  = 0; // Maximum orders per side
@@ -59,10 +58,7 @@ void get_orders() {
 
   for (int i = OrdersTotal() - 1; i >= 0; i--) {
     if (!OrderSelect(i, SELECT_BY_POS)) continue;
-    if (OrderSymbol() != Symbol() ||
-        !(OrderMagicNumber() == magic_1 ||
-          OrderMagicNumber() == magic_2 ||
-          OrderMagicNumber() == magic_3)) continue;
+    if (OrderSymbol() != Symbol() || OrderMagicNumber() != magic_1) continue;
     switch (OrderType()) {
       case OP_BUY:
         size = ArraySize(buy_tickets);
@@ -225,45 +221,32 @@ void open() {
   if (magic_1 > 0 && slope > min_slope) {
     _magic = magic_1;
 
+    double _min_hl = min_hl * ma_hl / 100;
+
     should_buy  = ma_m0 > ma_m1 && m0 > m1
                && (buy_count == 0
-                    ? Ask < ma_h0 - (min_hl * ma_hl / 100)
+                    ? Ask < ma_h0 - _min_hl
                     : (gap_bwd > 0 && buy_nearest_price - Ask > _gap_bwd) ||
-                      (gap_fwd > 0 && Ask - buy_nearest_price > _gap_fwd));
+                      (gap_fwd > 0 && Ask - buy_nearest_price > _gap_fwd))
+               && (Ask > ma_h0 - _min_hl ? buy_count < max_orders : true)
+               && TimeCurrent() - buy_closed_time > sleep;
 
     should_sell = ma_m0 < ma_m1 && m0 < m1
                && (sell_count == 0
-                    ? Bid > ma_l0 + (min_hl * ma_hl / 100)
+                    ? Bid > ma_l0 + _min_hl
                     : (gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
-                      (gap_fwd > 0 && sell_nearest_price - Bid > _gap_fwd));
+                      (gap_fwd > 0 && sell_nearest_price - Bid > _gap_fwd))
+               && (Bid < ma_l0 + _min_hl ? sell_count < max_orders : true)
+               && TimeCurrent() - sell_closed_time > sleep;
   }
-
-  // Strategy: pivot at the open
-  if (magic_2 > 0) {
-    _magic = magic_2;
-
-    should_buy  = m0 > m1
-               && (buy_count == 0
-                    ? Ask < iOpen(Symbol(), tf, 0)
-                    : (gap_bwd > 0 && buy_nearest_price - Ask > _gap_bwd) ||
-                      (gap_fwd > 0 && Ask - buy_nearest_price > _gap_fwd));
-
-    should_sell = m0 < m1
-               && (sell_count == 0
-                    ? Bid > iOpen(Symbol(), tf, 0)
-                    : (gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
-                      (gap_fwd > 0 && sell_nearest_price - Bid > _gap_fwd));
-  }
-
-  should_buy  = should_buy  && buy_count  < max_orders && TimeCurrent() - buy_closed_time  > sleep;
-  should_sell = should_sell && sell_count < max_orders && TimeCurrent() - sell_closed_time > sleep;
 
   if (should_buy) {
     double _lots = inc == 0 ? lots
                     : buy_count == 0 ? lots
                       : Ask > buy_nearest_price ? lots
                         : NormalizeDouble(buy_count * inc + lots, 2);
-    if (0 < OrderSend(Symbol(), OP_BUY, _lots, Ask, 3, 0, 0, "Magic="+IntegerToString(_magic), _magic, 0)) return;
+    // string comment = "Magic="+IntegerToString(_magic);
+    if (0 < OrderSend(Symbol(), OP_BUY, _lots, Ask, 3, 0, 0, NULL, _magic, 0)) return;
   }
 
   if (should_sell) {
@@ -271,6 +254,7 @@ void open() {
                     : sell_count == 0 ? lots
                       : Bid < sell_nearest_price ? lots
                         : NormalizeDouble(sell_count * inc + lots, 2);
-    if (0 < OrderSend(Symbol(), OP_SELL, _lots, Bid, 3, 0, 0, "Magic="+IntegerToString(_magic), _magic, 0)) return;
+    // string comment = "Magic="+IntegerToString(_magic);
+    if (0 < OrderSend(Symbol(), OP_SELL, _lots, Bid, 3, 0, 0, NULL, _magic, 0)) return;
   }
 }
