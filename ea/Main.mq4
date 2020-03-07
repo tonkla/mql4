@@ -4,7 +4,7 @@
 #property strict
 
 input string secret   = "";// Secret spell to summon the EA
-input int magic_1     = 0; // ID for strategy: follow trend
+input int magic_1     = 0; // ID-1 (strategy: follow trend)
 input double lots     = 0; // Initial lots
 input double inc      = 0; // Increased lots from the initial one
 input int max_orders  = 0; // Maximum orders per side
@@ -22,7 +22,7 @@ input int sl          = 0; // Single stop loss in %ATR
 input int tp          = 0; // Single take profit in %ATR
 input int sum_sl      = 0; // Total stop loss in %ATR
 input int sum_tp      = 0; // Total take profit in %ATR
-input bool force_sl   = 0; // Stop loss when the opposite was opened
+input bool oppo_sl    = 0; // Stop loss when the opposite was opened
 input bool trend_sl   = 0; // Stop loss when the trend changed
 input bool hl_sl      = 0; // Stop loss when the order exceeds H/L
 input int start_gmt   = -1;// Starting hour in GMT
@@ -31,7 +31,7 @@ input bool friday     = 0; // Close all on late Friday
 
 int buy_tickets[], sell_tickets[], buy_count, sell_count;
 double buy_nearest_price, sell_nearest_price, buy_pl, sell_pl;
-double ma_h0, ma_l0, ma_m0, ma_m1, m0, m1, ma_hl, slope;
+double ma_h0, ma_l0, ma_m0, ma_m1, m0, m1, ma_hl, slope, h2, l2;
 datetime buy_closed_time, sell_closed_time;
 bool start;
 
@@ -94,6 +94,8 @@ void get_vars() {
   slope = MathAbs(ma_m0 - ma_m1) / ma_hl * 100;
   m0 = iMA(Symbol(), tf_2, period_2, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   m1 = iMA(Symbol(), tf_2, period_2, 0, MODE_LWMA, PRICE_MEDIAN, 1);
+  h2 = iHigh(Symbol(), tf, 2);
+  l2 = iLow(Symbol(), tf, 2);
 }
 
 void close() {
@@ -110,15 +112,15 @@ void close() {
     return;
   }
 
-  if (force_sl && buy_count > 0 && sell_count > 0) {
+  if (trend_sl) {
+    if (buy_count > 0 && (ma_m0 < ma_m1 || Bid < l2)) close_buy_orders();
+    if (sell_count > 0 && (ma_m0 > ma_m1 || Ask > h2)) close_sell_orders();
+  }
+
+  if (oppo_sl && buy_count > 0 && sell_count > 0) {
     double _sl = 0.05 * ma_hl;
     if (buy_pl < 0 && sell_pl > _sl) close_buy_orders();
     if (sell_pl < 0 && buy_pl > _sl) close_sell_orders();
-  }
-
-  if (trend_sl) {
-    if (ma_m0 < ma_m1 && buy_count > 0) close_buy_orders();
-    if (ma_m0 > ma_m1 && sell_count > 0) close_sell_orders();
   }
 
   if (hl_sl) {
@@ -223,7 +225,7 @@ void open() {
 
     double _min_hl = min_hl * ma_hl / 100;
 
-    should_buy  = ma_m0 > ma_m1 && m0 > m1
+    should_buy  = ma_m0 > ma_m1 && m0 > m1 && Ask > l2
                && (buy_count == 0
                     ? Ask < ma_h0 - _min_hl
                     : (gap_bwd > 0 && buy_nearest_price - Ask > _gap_bwd) ||
@@ -231,7 +233,7 @@ void open() {
                && (Ask > ma_h0 - _min_hl ? buy_count < max_orders : true)
                && TimeCurrent() - buy_closed_time > sleep;
 
-    should_sell = ma_m0 < ma_m1 && m0 < m1
+    should_sell = ma_m0 < ma_m1 && m0 < m1 && Bid < h2
                && (sell_count == 0
                     ? Bid > ma_l0 + _min_hl
                     : (gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
@@ -245,7 +247,6 @@ void open() {
                     : buy_count == 0 ? lots
                       : Ask > buy_nearest_price ? lots
                         : NormalizeDouble(buy_count * inc + lots, 2);
-    // string comment = "Magic="+IntegerToString(_magic);
     if (0 < OrderSend(Symbol(), OP_BUY, _lots, Ask, 3, 0, 0, NULL, _magic, 0)) return;
   }
 
@@ -254,7 +255,6 @@ void open() {
                     : sell_count == 0 ? lots
                       : Bid < sell_nearest_price ? lots
                         : NormalizeDouble(sell_count * inc + lots, 2);
-    // string comment = "Magic="+IntegerToString(_magic);
     if (0 < OrderSend(Symbol(), OP_SELL, _lots, Bid, 3, 0, 0, NULL, _magic, 0)) return;
   }
 }
