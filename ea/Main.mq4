@@ -27,7 +27,7 @@ input bool trend_sl   = 0; // Stop loss when the trend changed
 input bool hl_sl      = 0; // Stop loss when the order exceeds H/L
 input int start_gmt   = -1;// Starting hour in GMT
 input int stop_gmt    = -1;// Stopping hour in GMT
-input bool friday     = 0; // Close all on late Friday
+input int friday_gmt  = -1;// Close all on Friday hour in GMT
 
 int buy_tickets[], sell_tickets[], buy_count, sell_count;
 double buy_nearest_price, sell_nearest_price, buy_pl, sell_pl;
@@ -106,7 +106,7 @@ void close() {
     return;
   }
 
-  if (friday && TimeHour(TimeGMT()) >= 21 && DayOfWeek() == 5) {
+  if (friday_gmt > 0 && TimeHour(TimeGMT()) >= friday_gmt && DayOfWeek() == 5) {
     if (buy_count > 0) close_buy_orders();
     if (sell_count > 0) close_sell_orders();
     return;
@@ -211,7 +211,7 @@ void open() {
     if (TimeHour(TimeGMT()) == start_gmt) start = true;
     else return;
   }
-  if (friday && TimeHour(TimeGMT()) >= 21 && DayOfWeek() == 5) return;
+  if (friday_gmt > 0 && TimeHour(TimeGMT()) >= friday_gmt && DayOfWeek() == 5) return;
 
   int _magic = 0;
   bool should_buy = false, should_sell = false;
