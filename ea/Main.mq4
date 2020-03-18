@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.3"
+#property version   "1.4"
 #property strict
 
 input string secret   = "";// Secret spell to summon the EA
@@ -12,10 +12,11 @@ input int tf          = 0; // Main timeframe
 input int period      = 0; // Period for main timeframe
 input int tf_2        = 0; // Fast timeframe
 input int period_2    = 0; // Period for fast timeframe
-input int min_hl      = 0; // Minimum range from H/L (%ATR)
-input int min_slope   = 0; // Minimum slope to be trend
-input int gap_bwd     = 0; // Backward gap between orders (%ATR)
-input int gap_fwd     = 0; // Forward gap between orders (%ATR)
+input int min_hl      = 0; // Minimum range away from H/L in %ATR
+input int min_prev    = 0; // Minimum back percent of previous H-L
+input int min_slope   = 0; // Minimum slope percent to be trend
+input int gap_bwd     = 0; // Backward gap between orders in %ATR
+input int gap_fwd     = 0; // Forward gap between orders in %ATR
 input int sleep       = 0; // Seconds to sleep since loss
 input int time_sl     = 0; // Seconds to close since open
 input int sl          = 0; // Single stop loss in %ATR
@@ -31,7 +32,7 @@ input int friday_gmt  = -1;// Close all on Friday hour in GMT
 
 int buy_tickets[], sell_tickets[], buy_count, sell_count;
 double buy_nearest_price, sell_nearest_price, buy_pl, sell_pl;
-double ma_h0, ma_l0, ma_m0, ma_m1, m0, m1, ma_hl, slope, h2, l2;
+double ma_h0, ma_l0, ma_m0, ma_m1, m0, m1, ma_hl, slope, h1, l1, h2, l2;
 datetime buy_closed_time, sell_closed_time;
 bool start;
 
@@ -94,6 +95,8 @@ void get_vars() {
   slope = MathAbs(ma_m0 - ma_m1) / ma_hl * 100;
   m0 = iMA(Symbol(), tf_2, period_2, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   m1 = iMA(Symbol(), tf_2, period_2, 0, MODE_LWMA, PRICE_MEDIAN, 1);
+  h1 = iHigh(Symbol(), tf, 1);
+  l1 = iLow(Symbol(), tf, 1);
   h2 = iHigh(Symbol(), tf, 2);
   l2 = iLow(Symbol(), tf, 2);
 }
@@ -223,11 +226,14 @@ void open() {
   if (magic_1 > 0 && slope > min_slope) {
     _magic = magic_1;
 
+    double _min_prev = min_prev * (h1 - l1) / 100;
+    double _min_h1 = h1 - _min_prev;
+    double _min_l1 = l1 + _min_prev;
     double _min_hl = min_hl * ma_hl / 100;
 
     should_buy  = ma_m0 > ma_m1 && m0 > m1 && Ask > l2
                && (buy_count == 0
-                    ? Ask < ma_h0 - _min_hl
+                    ? (Ask < ma_h0 - _min_hl && Ask < _min_h1)
                     : (gap_bwd > 0 && buy_nearest_price - Ask > _gap_bwd) ||
                       (gap_fwd > 0 && Ask - buy_nearest_price > _gap_fwd))
                && (Ask > ma_h0 - _min_hl ? buy_count < max_orders : true)
@@ -235,7 +241,7 @@ void open() {
 
     should_sell = ma_m0 < ma_m1 && m0 < m1 && Bid < h2
                && (sell_count == 0
-                    ? Bid > ma_l0 + _min_hl
+                    ? (Bid > ma_l0 + _min_hl && Bid > _min_l1)
                     : (gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
                       (gap_fwd > 0 && sell_nearest_price - Bid > _gap_fwd))
                && (Bid < ma_l0 + _min_hl ? sell_count < max_orders : true)
