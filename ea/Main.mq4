@@ -226,25 +226,23 @@ void open() {
   if (magic_1 > 0 && slope > min_slope) {
     _magic = magic_1;
 
-    double _min_prev = min_prev * (h1 - l1) / 100;
-    double _min_h1 = h1 - _min_prev;
-    double _min_l1 = l1 + _min_prev;
-    double _min_hl = min_hl * ma_hl / 100;
+    double _min_hl0 = min_hl * ma_hl / 100;
+    double _min_hl1 = min_prev * (h1 - l1) / 100;
 
     should_buy  = ma_m0 > ma_m1 && m0 > m1 && Ask > l2
                && (buy_count == 0
-                    ? (Ask < ma_h0 - _min_hl && Ask < _min_h1)
+                    ? (Ask < ma_h0 - _min_hl0 && Ask < h1 - _min_hl1)
                     : (gap_bwd > 0 && buy_nearest_price - Ask > _gap_bwd) ||
                       (gap_fwd > 0 && Ask - buy_nearest_price > _gap_fwd))
-               && (Ask > ma_h0 - _min_hl ? buy_count < max_orders : true)
+               && (Ask > ma_h0 - _min_hl0 ? buy_count < max_orders : true)
                && TimeCurrent() - buy_closed_time > sleep;
 
     should_sell = ma_m0 < ma_m1 && m0 < m1 && Bid < h2
                && (sell_count == 0
-                    ? (Bid > ma_l0 + _min_hl && Bid > _min_l1)
+                    ? (Bid > ma_l0 + _min_hl0 && Bid > l1 + _min_hl1)
                     : (gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
                       (gap_fwd > 0 && sell_nearest_price - Bid > _gap_fwd))
-               && (Bid < ma_l0 + _min_hl ? sell_count < max_orders : true)
+               && (Bid < ma_l0 + _min_hl0 ? sell_count < max_orders : true)
                && TimeCurrent() - sell_closed_time > sleep;
   }
 
