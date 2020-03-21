@@ -1,13 +1,13 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.4"
+#property version   "1.5"
 #property strict
 
 input string secret   = "";// Secret spell to summon the EA
 input int magic_1     = 0; // ID-1 (strategy: follow trend)
 input double lots     = 0; // Initial lots
 input double inc      = 0; // Increased lots from the initial one
-input int max_orders  = 0; // Maximum orders per side
+input int max_orders  = 0; // Maximum orders in dangerous zone
 input int tf          = 0; // Main timeframe
 input int period      = 0; // Period for main timeframe
 input int tf_2        = 0; // Fast timeframe
@@ -17,15 +17,17 @@ input int min_prev    = 0; // Minimum back percent of previous H-L
 input int min_slope   = 0; // Minimum slope percent to be trend
 input int gap_bwd     = 0; // Backward gap between orders in %ATR
 input int gap_fwd     = 0; // Forward gap between orders in %ATR
-input int sleep       = 0; // Seconds to sleep since loss
-input int time_sl     = 0; // Seconds to close since open
+input int sleep       = 0; // Seconds to sleep since the order is closed
+input int sl_time     = 0; // Seconds to close since the order is open
 input int sl          = 0; // Single stop loss in %ATR
 input int tp          = 0; // Single take profit in %ATR
-input int sum_sl      = 0; // Total stop loss in %ATR
-input int sum_tp      = 0; // Total take profit in %ATR
-input bool oppo_sl    = 0; // Stop loss when the opposite was opened
-input bool trend_sl   = 0; // Stop loss when the trend changed
-input bool hl_sl      = 0; // Stop loss when the order exceeds H/L
+input int sl_sum      = 0; // Total stop loss in %ATR
+input int tp_sum      = 0; // Total take profit in %ATR
+input int sl_near     = 0; // Stop loss in %ATR from the nearest order
+input int tp_near     = 0; // Take profit in %ATR from the nearest order
+input bool sl_trend   = 0; // Stop loss when the trend changed
+input bool sl_oppo    = 0; // Stop loss when the opposite was opened
+input bool sl_hl      = 0; // Stop loss when the order exceeds H/L
 input int start_gmt   = -1;// Starting hour in GMT
 input int stop_gmt    = -1;// Stopping hour in GMT
 input int friday_gmt  = -1;// Close all on Friday hour in GMT
@@ -115,18 +117,18 @@ void close() {
     return;
   }
 
-  if (trend_sl) {
+  if (sl_trend) {
     if (buy_count > 0 && (ma_m0 < ma_m1 || Bid < l2)) close_buy_orders();
     if (sell_count > 0 && (ma_m0 > ma_m1 || Ask > h2)) close_sell_orders();
   }
 
-  if (oppo_sl && buy_count > 0 && sell_count > 0) {
+  if (sl_oppo && buy_count > 0 && sell_count > 0) {
     double _sl = 0.05 * ma_hl;
     if (buy_pl < 0 && sell_pl > _sl) close_buy_orders();
     if (sell_pl < 0 && buy_pl > _sl) close_sell_orders();
   }
 
-  if (hl_sl) {
+  if (sl_hl) {
     for (int i = 0; i < buy_count; i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (OrderOpenPrice() > ma_h0
@@ -141,27 +143,17 @@ void close() {
     }
   }
 
-  if (time_sl > 0) {
+  if (sl_time > 0) {
     for (int i = 0; i < buy_count; i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
-      if (TimeCurrent() - OrderOpenTime() > time_sl
+      if (TimeCurrent() - OrderOpenTime() > sl_time
           && OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
     }
     for (int i = 0; i < sell_count; i++) {
       if (!OrderSelect(sell_tickets[i], SELECT_BY_TICKET)) continue;
-      if (TimeCurrent() - OrderOpenTime() > time_sl
+      if (TimeCurrent() - OrderOpenTime() > sl_time
           && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
     }
-  }
-
-  double pl = buy_pl + sell_pl;
-  if (sum_sl > 0 && pl < 0 && MathAbs(pl) > sum_sl * ma_hl / 100) {
-    if (buy_pl < 0) close_buy_orders();
-    if (sell_pl < 0) close_sell_orders();
-  }
-  if (sum_tp > 0 && pl > sum_tp * ma_hl / 100) {
-    if (buy_count > 0) close_buy_orders();
-    if (sell_count > 0) close_sell_orders();
   }
 
   if (sl > 0) {
@@ -191,6 +183,63 @@ void close() {
       if (!OrderSelect(sell_tickets[i], SELECT_BY_TICKET)) continue;
       if (OrderOpenPrice() - Ask > _tp
           && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
+    }
+  }
+
+  double pl = buy_pl + sell_pl;
+
+  if (sl_sum > 0 && pl < 0 && MathAbs(pl) > sl_sum * ma_hl / 100) {
+    if (buy_pl < 0) close_buy_orders();
+    if (sell_pl < 0) close_sell_orders();
+  }
+
+  if (tp_sum > 0 && pl > tp_sum * ma_hl / 100) {
+    if (buy_count > 0) close_buy_orders();
+    if (sell_count > 0) close_sell_orders();
+  }
+
+  if (sl_near > 0 || tp_near > 0) {
+    double buy_highest_price = 0;
+    double buy_lowest_price = 0;
+    double sell_highest_price = 0;
+    double sell_lowest_price = 0;
+
+    for (int i = 0; i < buy_count; i++) {
+      if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
+      if (buy_highest_price == 0 || OrderOpenPrice() > buy_highest_price) {
+        buy_highest_price = OrderOpenPrice();
+      }
+      if (buy_lowest_price == 0 || OrderOpenPrice() < buy_lowest_price) {
+        buy_lowest_price = OrderOpenPrice();
+      }
+    }
+
+    for (int i = 0; i < sell_count; i++) {
+      if (!OrderSelect(sell_tickets[i], SELECT_BY_TICKET)) continue;
+      if (sell_highest_price == 0 || OrderOpenPrice() > sell_highest_price) {
+        sell_highest_price = OrderOpenPrice();
+      }
+      if (sell_lowest_price == 0 || OrderOpenPrice() < sell_lowest_price) {
+        sell_lowest_price = OrderOpenPrice();
+      }
+    }
+
+    double _min_hl0 = min_hl * ma_hl / 100;
+
+    if (sl_near > 0 && pl < 0) {
+      double _sl = sl_near * ma_hl / 100;
+      if (buy_pl < 0 && Bid < ma_l0 + _min_hl0 && buy_lowest_price - Bid > _sl)
+        close_buy_orders();
+      if (sell_pl < 0 && Ask > ma_h0 - _min_hl0 && Ask - sell_highest_price > _sl)
+        close_sell_orders();
+    }
+
+    if (tp_near > 0 && pl > 0) {
+      double _tp = tp_near * ma_hl / 100;
+      if (buy_pl > 0 && Bid > ma_h0 - _min_hl0 && Bid - buy_highest_price > _tp)
+        close_buy_orders();
+      if (sell_pl > 0 && Ask < ma_l0 + _min_hl0 && sell_lowest_price - Ask > _tp)
+        close_sell_orders();
     }
   }
 }
