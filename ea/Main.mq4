@@ -34,7 +34,7 @@ input int friday_gmt  = -1;// Close all on Friday hour in GMT
 
 int buy_tickets[], sell_tickets[], buy_count, sell_count;
 double buy_nearest_price, sell_nearest_price, buy_pl, sell_pl;
-double ma_h0, ma_l0, ma_m0, ma_m1, m0, m1, ma_hl, slope, h1, l1, h2, l2;
+double ma_h0, ma_l0, ma_m0, ma_m1, m0, m1, ma_hl, slope, h0, l0, h1, l1, h2, l2;
 datetime buy_closed_time, sell_closed_time;
 bool start;
 
@@ -97,6 +97,8 @@ void get_vars() {
   slope = MathAbs(ma_m0 - ma_m1) / ma_hl * 100;
   m0 = iMA(Symbol(), tf_2, period_2, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   m1 = iMA(Symbol(), tf_2, period_2, 0, MODE_LWMA, PRICE_MEDIAN, 1);
+  h0 = iHigh(Symbol(), tf, 0);
+  l0 = iLow(Symbol(), tf, 0);
   h1 = iHigh(Symbol(), tf, 1);
   l1 = iLow(Symbol(), tf, 1);
   h2 = iHigh(Symbol(), tf, 2);
@@ -278,7 +280,7 @@ void open() {
     double _min_hl0 = min_hl * ma_hl / 100;
     double _min_hl1 = min_prev * (h1 - l1) / 100;
 
-    should_buy  = ma_m0 > ma_m1 && m0 > m1 && Ask > l2
+    should_buy  = ma_m0 > ma_m1 && m0 > m1 && l0 > l2
                && (buy_count == 0
                     ? (Ask < ma_h0 - _min_hl0 && Ask < h1 - _min_hl1)
                     : (gap_bwd > 0 && buy_nearest_price - Ask > _gap_bwd) ||
@@ -286,7 +288,7 @@ void open() {
                && (Ask > ma_h0 - _min_hl0 ? buy_count < max_orders : true)
                && TimeCurrent() - buy_closed_time > sleep;
 
-    should_sell = ma_m0 < ma_m1 && m0 < m1 && Bid < h2
+    should_sell = ma_m0 < ma_m1 && m0 < m1 && h0 < h2
                && (sell_count == 0
                     ? (Bid > ma_l0 + _min_hl0 && Bid > l1 + _min_hl1)
                     : (gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
