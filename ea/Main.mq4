@@ -132,7 +132,7 @@ void close() {
     if (sell_pl < 0 && buy_pl > _sl) close_sell_orders();
   }
 
-  if (sl_hl) {
+  if (sl_hl && (buy_count == max_orders || sell_count == max_orders)) {
     for (int i = 0; i < buy_count; i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (OrderOpenPrice() > ma_h0
