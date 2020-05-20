@@ -1,10 +1,11 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.5"
+#property version   "1.6"
 #property strict
 
 input string secret   = "";// Secret spell to summon the EA
 input int magic_1     = 0; // ID-1 (strategy: follow trend)
+input int magic_2     = 0; // ID-2 (strategy: counter trend)
 input double lots     = 0; // Initial lots
 input double inc      = 0; // Increased lots from the initial one
 input int max_orders  = 0; // Maximum orders in dangerous zone
@@ -61,7 +62,8 @@ void get_orders() {
 
   for (int i = OrdersTotal() - 1; i >= 0; i--) {
     if (!OrderSelect(i, SELECT_BY_POS)) continue;
-    if (OrderSymbol() != Symbol() || OrderMagicNumber() != magic_1) continue;
+    if (OrderSymbol() != Symbol() || OrderMagicNumber() == 0 ||
+         !(OrderMagicNumber() == magic_1 || OrderMagicNumber() == magic_2)) continue;
     switch (OrderType()) {
       case OP_BUY:
         size = ArraySize(buy_tickets);
@@ -134,14 +136,13 @@ void close() {
     for (int i = 0; i < buy_count; i++) {
       if (!OrderSelect(buy_tickets[i], SELECT_BY_TICKET)) continue;
       if (OrderOpenPrice() > ma_h0
-          && OrderClose(OrderTicket(), OrderLots(), Bid, 3))
-        buy_closed_time = TimeCurrent();
+          && OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
+
     }
     for (int i = 0; i < sell_count; i++) {
       if (!OrderSelect(sell_tickets[i], SELECT_BY_TICKET)) continue;
       if (OrderOpenPrice() < ma_l0
-          && OrderClose(OrderTicket(), OrderLots(), Ask, 3))
-        sell_closed_time = TimeCurrent();
+          && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
     }
   }
 
@@ -262,7 +263,7 @@ void close_sell_orders() {
 
 void open() {
   if (start_gmt >= 0 && !start) {
-    if (TimeHour(TimeGMT()) == start_gmt) start = true;
+    if (TimeHour(TimeGMT()) >= start_gmt && TimeHour(TimeGMT()) < stop_gmt) start = true;
     else return;
   }
   if (friday_gmt > 0 && TimeHour(TimeGMT()) >= friday_gmt && DayOfWeek() == 5) return;
@@ -294,6 +295,25 @@ void open() {
                     : (gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
                       (gap_fwd > 0 && sell_nearest_price - Bid > _gap_fwd))
                && (Bid < ma_l0 + _min_hl0 ? sell_count < max_orders : true)
+               && TimeCurrent() - sell_closed_time > sleep;
+  }
+
+  // Strategy: counter trend
+  if (magic_2 > 0) {
+    _magic = magic_2;
+
+    double gap = min_hl * ma_hl / 100;
+
+    should_buy  = Ask < ma_m0 - gap
+               && ((gap_bwd > 0 && buy_nearest_price - Ask > _gap_bwd) ||
+                   (gap_fwd > 0 && Ask - buy_nearest_price > _gap_fwd))
+               && buy_count < max_orders
+               && TimeCurrent() - buy_closed_time > sleep;
+
+    should_sell = Bid > ma_m0 + gap
+               && ((gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
+                   (gap_fwd > 0 && sell_nearest_price - Bid > _gap_fwd))
+               && sell_count < max_orders
                && TimeCurrent() - sell_closed_time > sleep;
   }
 
