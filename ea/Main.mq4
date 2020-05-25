@@ -305,14 +305,16 @@ void open() {
     double gap = min_hl * ma_hl / 100;
 
     should_buy  = Ask < ma_m0 - gap
-               && ((gap_bwd > 0 && buy_nearest_price - Ask > _gap_bwd) ||
-                   (gap_fwd > 0 && Ask - buy_nearest_price > _gap_fwd))
+               && (buy_count_c == 0 ||
+                    ((gap_bwd > 0 && buy_nearest_price_c - Ask > _gap_bwd) ||
+                     (gap_fwd > 0 && Ask - buy_nearest_price_c > _gap_fwd)))
                && buy_count < max_orders
                && TimeCurrent() - buy_closed_time > sleep;
 
     should_sell = Bid > ma_m0 + gap
-               && ((gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
-                   (gap_fwd > 0 && sell_nearest_price - Bid > _gap_fwd))
+               && (sell_count_c == 0 ||
+                    ((gap_bwd > 0 && Bid - sell_nearest_price_c > _gap_bwd) ||
+                     (gap_fwd > 0 && sell_nearest_price_c - Bid > _gap_fwd)))
                && sell_count < max_orders
                && TimeCurrent() - sell_closed_time > sleep;
   }
