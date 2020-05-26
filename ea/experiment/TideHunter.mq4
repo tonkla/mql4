@@ -21,7 +21,7 @@ int OnInit() {
 
 void OnTick() {
   // Prevent abnormal spread
-  if ((Ask - Bid) * MathPow(10, Digits()) > max_spread) return;
+  if (MarketInfo(Symbol(), MODE_SPREAD) > max_spread) return;
 
   int buy_tickets_c[], sell_tickets_c[], buy_count_c, sell_count_c,
       buy_tickets_f[], sell_tickets_f[], buy_count_f, sell_count_f,
