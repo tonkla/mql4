@@ -11,7 +11,7 @@ input int start_gmt   = -1;// Starting hour in GMT
 input int stop_gmt    = -1;// Stopping hour in GMT
 input int friday_gmt  = -1;// Close all on Friday hour in GMT
 
-int tf = 0, period = 0, max_spread = 0;
+int tf = 0, tf_sl = 0, period = 0, max_spread = 0;
 double gap_sta = 0, gap_bwd = 0, gap_fwd = 0, tp = 0;
 bool start = false, sl = false;
 
@@ -81,12 +81,14 @@ void OnTick() {
   buy_count_f = ArraySize(buy_tickets_f);
   sell_count_f = ArraySize(sell_tickets_f);
 
-  double ma_h0, ma_l0, ma_m0, ma_m1, ma_hl;
+  double ma_h0, ma_l0, ma_m0, ma_m1, ma_hl, ma_h0_sl, ma_l0_sl;
   ma_h0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_HIGH, 0);
   ma_l0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
   ma_m0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   ma_m1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
   ma_hl = ma_h0 - ma_l0;
+  ma_h0_sl = iMA(Symbol(), tf_sl, period, 0, MODE_LWMA, PRICE_HIGH, 0);
+  ma_l0_sl = iMA(Symbol(), tf_sl, period, 0, MODE_LWMA, PRICE_LOW, 0);
 
   // Close --------------------------------------------------------------------
   if (stop_gmt >= 0 && TimeHour(TimeGMT()) >= stop_gmt) {
@@ -107,23 +109,21 @@ void OnTick() {
 
   // Stop Loss ------------------------
   if (sl) {
-    double _ma_h0 = iMA(Symbol(), PERIOD_D1, period, 0, MODE_LWMA, PRICE_HIGH, 0);
-    double _ma_l0 = iMA(Symbol(), PERIOD_D1, period, 0, MODE_LWMA, PRICE_LOW, 0);
     for (int i = 0; i < buy_count_c; i++) {
       if (!OrderSelect(buy_tickets_c[i], SELECT_BY_TICKET)) continue;
-      if (OrderOpenPrice() > _ma_h0 && OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
+      if (OrderOpenPrice() > ma_h0_sl && OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
     }
     for (int j = 0; j < sell_count_f; j++) {
       if (!OrderSelect(sell_tickets_f[j], SELECT_BY_TICKET)) continue;
-      if (OrderOpenPrice() > _ma_h0 && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
+      if (OrderOpenPrice() > ma_h0_sl && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
     }
     for (int i = 0; i < sell_count_c; i++) {
       if (!OrderSelect(sell_tickets_c[i], SELECT_BY_TICKET)) continue;
-      if (OrderOpenPrice() < _ma_l0 && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
+      if (OrderOpenPrice() < ma_l0_sl && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
     }
     for (int j = 0; j < buy_count_f; j++) {
       if (!OrderSelect(buy_tickets_f[j], SELECT_BY_TICKET)) continue;
-      if (OrderOpenPrice() < _ma_l0 && OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
+      if (OrderOpenPrice() < ma_l0_sl && OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
     }
   }
 
@@ -152,10 +152,12 @@ void OnTick() {
   bool should_buy = false, should_sell = false;
 
   should_buy  = Ask < ma_m0 - _gap_sta
+             && Ask < ma_h0_sl
              && (buy_count_c == 0 ||
                  buy_nearest_price_c - Ask > _gap_bwd || Ask - buy_nearest_price_c > _gap_fwd);
 
   should_sell = Bid > ma_m0 + _gap_sta
+             && Bid > ma_l0_sl
              && (sell_count_c == 0 ||
                  Bid - sell_nearest_price_c > _gap_bwd || sell_nearest_price_c - Bid > _gap_fwd);
 
