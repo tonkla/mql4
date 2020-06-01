@@ -97,8 +97,8 @@ void OnTick() {
   sell_count_x = ArraySize(sell_tickets_x);
 
   double ma_d_h0, ma_d_l0, ma_d_hl,
-         ma_h_h0, ma_h_l0, ma_h_m0, ma_h_m1, ma_h_m2, ma_h_hl,
-         ma_m_m0, ma_m_m1, ma_m_m2;
+         ma_h_h0, ma_h_l0, ma_h_m0, ma_h_m1, ma_h_hl,
+         ma_m_m0, ma_m_m1;
 
   ma_d_h0 = iMA(Symbol(), PERIOD_D1, period, 0, MODE_LWMA, PRICE_HIGH, 0);
   ma_d_l0 = iMA(Symbol(), PERIOD_D1, period, 0, MODE_LWMA, PRICE_LOW, 0);
@@ -108,12 +108,10 @@ void OnTick() {
   ma_h_l0 = iMA(Symbol(), PERIOD_H1, period, 0, MODE_LWMA, PRICE_LOW, 0);
   ma_h_m0 = iMA(Symbol(), PERIOD_H1, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   ma_h_m1 = iMA(Symbol(), PERIOD_H1, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
-  ma_h_m2 = iMA(Symbol(), PERIOD_H1, period, 0, MODE_LWMA, PRICE_MEDIAN, 2);
   ma_h_hl = ma_h_h0 - ma_h_l0;
 
   ma_m_m0 = iMA(Symbol(), PERIOD_M5, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   ma_m_m1 = iMA(Symbol(), PERIOD_M5, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
-  ma_m_m2 = iMA(Symbol(), PERIOD_M5, period, 0, MODE_LWMA, PRICE_MEDIAN, 2);
 
   // Close --------------------------------------------------------------------
 
@@ -262,18 +260,16 @@ void OnTick() {
 
   if (magic_x > 0) {
     should_buy   = buy_count_x == 0
-                && Ask < ma_h_h0 - (0.2 * ma_h_hl)
-                && ((ma_h_m1 < ma_h_m0 && (ma_h_m0 - ma_h_m1) * MathPow(10, Digits()) > slope &&
-                     ma_m_m2 > ma_m_m1 && ma_m_m1 < ma_m_m0) ||
-                    (ma_h_m2 > ma_h_m1 && ma_h_m1 < ma_h_m0));
+                && Ask < ma_h_h0 - (0.25 * ma_h_hl)
+                && ma_h_m1 < ma_h_m0 && (ma_h_m0 - ma_h_m1) * MathPow(10, Digits()) > slope
+                && ma_m_m1 < ma_m_m0;
 
     if (should_buy && OrderSend(Symbol(), OP_BUY, lots_x, Ask, 3, 0, 0, "x", magic_x, 0) > 0) return;
 
     should_sell  = sell_count_x == 0
-                && Bid > ma_h_l0 + (0.2 * ma_h_hl)
-                && ((ma_h_m1 > ma_h_m0 && (ma_h_m1 - ma_h_m0) * MathPow(10, Digits()) > slope &&
-                     ma_m_m2 < ma_m_m1 && ma_m_m1 > ma_m_m0) ||
-                    (ma_h_m2 < ma_h_m1 && ma_h_m1 > ma_h_m0));
+                && Bid > ma_h_l0 + (0.25 * ma_h_hl)
+                && ma_h_m1 > ma_h_m0 && (ma_h_m1 - ma_h_m0) * MathPow(10, Digits()) > slope
+                && ma_m_m1 > ma_m_m0;
 
     if (should_sell && OrderSend(Symbol(), OP_SELL, lots_x, Bid, 3, 0, 0, "x", magic_x, 0) > 0) return;
   }
