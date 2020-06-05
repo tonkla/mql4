@@ -10,8 +10,7 @@ input int tf            = 0; // Timeframe
 input int period        = 0; // Period
 input int max_orders_f  = 0; // Maximum allowed orders
 input int max_spread    = 0; // Maximum allowed spread
-input double gap_bwd    = 0; // Backward gap between orders in %ATR
-input double gap_fwd    = 0; // Forward gap between orders in %ATR
+input double gap        = 0; // Gap between orders in %ATR
 input double slx_f      = 0; // Stop loss by total in %ATR
 input double tpx_f      = 0; // Take profit by total in %ATR
 input int start_gmt     = -1;// Starting hour in GMT
@@ -129,9 +128,6 @@ void OnTick() {
   // Follow ---------------------------
 
   if (magic_f > 0) {
-    double _gap_bwd = gap_bwd * ma_hl;
-    double _gap_fwd = gap_fwd * ma_hl;
-
     double h0 = iHigh(Symbol(), tf, 0);
     double h1 = iHigh(Symbol(), tf, 1);
     double h2 = iHigh(Symbol(), tf, 2);
@@ -144,7 +140,7 @@ void OnTick() {
                 && TimeCurrent() - buy_closed_time_f > 300
                 && (buy_count_f == 0
                     ? Ask < ma_m0 || (Ask < ma_h0 && l2 < l1 && l1 < l0)
-                    : Ask - buy_nearest_price_f > _gap_fwd || buy_nearest_price_f - Ask > _gap_bwd);
+                    : MathAbs(Ask - buy_nearest_price_f) > gap * ma_hl);
 
     if (should_buy && OrderSend(Symbol(), OP_BUY, lots, Ask, 3, 0, 0, "f", magic_f, 0) > 0) return;
 
@@ -153,7 +149,7 @@ void OnTick() {
                 && TimeCurrent() - sell_closed_time_f > 300
                 && (sell_count_f == 0
                     ? Bid > ma_m0 || (Bid > ma_l0 && h2 > h1 && h1 > h0)
-                    : sell_nearest_price_f - Bid > _gap_fwd || Bid - sell_nearest_price_f > _gap_bwd);
+                    : MathAbs(Bid - sell_nearest_price_f > gap * ma_hl);
 
     if (should_sell && OrderSend(Symbol(), OP_SELL, lots, Bid, 3, 0, 0, "f", magic_f, 0) > 0) return;
   }
