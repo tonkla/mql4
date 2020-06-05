@@ -5,7 +5,6 @@
 
 input string secret   = "";// Secret spell to summon the EA
 input int magic_1     = 0; // ID-1 (strategy: follow trend)
-input int magic_2     = 0; // ID-2 (strategy: counter trend)
 input double lots     = 0; // Initial lots
 input double inc      = 0; // Increased lots from the initial one
 input int max_orders  = 0; // Maximum orders in dangerous zone
@@ -62,8 +61,7 @@ void get_orders() {
 
   for (int i = OrdersTotal() - 1; i >= 0; i--) {
     if (!OrderSelect(i, SELECT_BY_POS)) continue;
-    if (OrderSymbol() != Symbol() || OrderMagicNumber() == 0 ||
-         !(OrderMagicNumber() == magic_1 || OrderMagicNumber() == magic_2)) continue;
+    if (OrderSymbol() != Symbol() || OrderMagicNumber() == 0 || OrderMagicNumber() != magic_1) continue;
     switch (OrderType()) {
       case OP_BUY:
         size = ArraySize(buy_tickets);
@@ -295,27 +293,6 @@ void open() {
                     : (gap_bwd > 0 && Bid - sell_nearest_price > _gap_bwd) ||
                       (gap_fwd > 0 && sell_nearest_price - Bid > _gap_fwd))
                && (Bid < ma_l0 + _min_hl0 ? sell_count < max_orders : true)
-               && TimeCurrent() - sell_closed_time > sleep;
-  }
-
-  // Strategy: counter trend
-  if (magic_2 > 0) {
-    _magic = magic_2;
-
-    double gap = min_hl * ma_hl / 100;
-
-    should_buy  = Ask < ma_m0 - gap
-               && (buy_count_c == 0 ||
-                    ((gap_bwd > 0 && buy_nearest_price_c - Ask > _gap_bwd) ||
-                     (gap_fwd > 0 && Ask - buy_nearest_price_c > _gap_fwd)))
-               && buy_count < max_orders
-               && TimeCurrent() - buy_closed_time > sleep;
-
-    should_sell = Bid > ma_m0 + gap
-               && (sell_count_c == 0 ||
-                    ((gap_bwd > 0 && Bid - sell_nearest_price_c > _gap_bwd) ||
-                     (gap_fwd > 0 && sell_nearest_price_c - Bid > _gap_fwd)))
-               && sell_count < max_orders
                && TimeCurrent() - sell_closed_time > sleep;
   }
 
