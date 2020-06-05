@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://tradeis.one"
-#property version   "1.2"
+#property version   "1.3"
 #property strict
 
 input string secret   = "";// Secret spell to summon the EA
@@ -13,7 +13,7 @@ input int start_gmt   = -1;// Starting hour in GMT
 input int stop_gmt    = -1;// Stopping hour in GMT
 input int friday_gmt  = -1;// Close all on Friday hour in GMT
 
-int period=0, max_spread=0, slope=0;
+int period=0, max_spread=0;
 double gap_sta=0, gap_bwd=0, gap_fwd=0, tp=0, tpx=0, slx=0;
 bool start=false;
 
@@ -97,8 +97,7 @@ void OnTick() {
   sell_count_x = ArraySize(sell_tickets_x);
 
   double ma_d_h0, ma_d_l0, ma_d_hl,
-         ma_h_h0, ma_h_l0, ma_h_m0, ma_h_m1, ma_h_hl,
-         ma_m_m0, ma_m_m1;
+         ma_h_h0, ma_h_l0, ma_h_m0, ma_h_m1, ma_h_hl;
 
   ma_d_h0 = iMA(Symbol(), PERIOD_D1, period, 0, MODE_LWMA, PRICE_HIGH, 0);
   ma_d_l0 = iMA(Symbol(), PERIOD_D1, period, 0, MODE_LWMA, PRICE_LOW, 0);
@@ -109,9 +108,6 @@ void OnTick() {
   ma_h_m0 = iMA(Symbol(), PERIOD_H1, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   ma_h_m1 = iMA(Symbol(), PERIOD_H1, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
   ma_h_hl = ma_h_h0 - ma_h_l0;
-
-  ma_m_m0 = iMA(Symbol(), PERIOD_M5, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
-  ma_m_m1 = iMA(Symbol(), PERIOD_M5, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
 
   // Close --------------------------------------------------------------------
 
@@ -158,13 +154,11 @@ void OnTick() {
   double _sl = slx * ma_d_hl;
   for (int i = 0; i < buy_count_x; i++) {
     if (!OrderSelect(buy_tickets_x[i], SELECT_BY_TICKET)) continue;
-    if ((ma_h_m1 > ma_h_m0 || OrderOpenPrice() - Bid > _sl)
-        && OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
+    if (OrderOpenPrice() - Bid > _sl && OrderClose(OrderTicket(), OrderLots(), Bid, 3)) continue;
   }
   for (int i = 0; i < sell_count_x; i++) {
     if (!OrderSelect(sell_tickets_x[i], SELECT_BY_TICKET)) continue;
-    if ((ma_h_m1 < ma_h_m0 || Ask - OrderOpenPrice() > _sl)
-        && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
+    if (Ask - OrderOpenPrice() > _sl && OrderClose(OrderTicket(), OrderLots(), Ask, 3)) continue;
   }
 
   // Take Profit ----------------------
@@ -237,8 +231,8 @@ void OnTick() {
   // Follow ---------------------------
 
   if (magic_f > 0) {
-    should_buy   = ma_h_m0 > ma_h_m1
-                && Ask < ma_d_h0
+    should_buy   = ma_h_m1 < ma_h_m0
+                && Ask < ma_d_h0 && Ask < ma_h_h0
                 && (buy_count_c == 0 ||
                     buy_nearest_price_c - Ask > _gap_bwd || Ask - buy_nearest_price_c > _gap_fwd)
                 && (buy_count_f == 0 ||
@@ -246,8 +240,8 @@ void OnTick() {
 
     if (should_buy && OrderSend(Symbol(), OP_BUY, lots, Ask, 3, 0, 0, "f", magic_f, 0) > 0) return;
 
-    should_sell  = ma_h_m0 < ma_h_m1
-                && Bid > ma_d_l0
+    should_sell  = ma_h_m1 > ma_h_m0
+                && Bid > ma_d_l0 && Bid > ma_h_l0
                 && (sell_count_c == 0 ||
                     Bid - sell_nearest_price_c > _gap_bwd || sell_nearest_price_c - Bid > _gap_fwd)
                 && (sell_count_f == 0 ||
@@ -259,17 +253,28 @@ void OnTick() {
   // Hunt -----------------------------
 
   if (magic_x > 0) {
+    if (TimeHour(TimeGMT()) < 8 || TimeHour(TimeGMT()) >= 20) return;
+
+    double h0 = iHigh(Symbol(), PERIOD_H1, 0);
+    double h1 = iHigh(Symbol(), PERIOD_H1, 1);
+    double l0 = iLow(Symbol(), PERIOD_H1, 0);
+    double l1 = iLow(Symbol(), PERIOD_H1, 1);
+    double ma_m_m0 = iMA(Symbol(), PERIOD_M1, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
+    double ma_m_m1 = iMA(Symbol(), PERIOD_M1, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
+    double upper_m0 = ma_h_m0 + (0.25 * ma_h_hl);
+    double lower_m0 = ma_h_m0 - (0.25 * ma_h_hl);
+
     should_buy   = buy_count_x == 0
-                && Ask < ma_h_h0 - (0.25 * ma_h_hl)
-                && ma_h_m1 < ma_h_m0 && (ma_h_m0 - ma_h_m1) * MathPow(10, Digits()) > slope
-                && ma_m_m1 < ma_m_m0;
+                && ma_h_m1 < ma_h_m0 && ma_m_m1 < ma_m_m0
+                && l1 < l0
+                && Ask < lower_m0;
 
     if (should_buy && OrderSend(Symbol(), OP_BUY, lots_x, Ask, 3, 0, 0, "x", magic_x, 0) > 0) return;
 
     should_sell  = sell_count_x == 0
-                && Bid > ma_h_l0 + (0.25 * ma_h_hl)
-                && ma_h_m1 > ma_h_m0 && (ma_h_m1 - ma_h_m0) * MathPow(10, Digits()) > slope
-                && ma_m_m1 > ma_m_m0;
+                && ma_h_m1 > ma_h_m0 && ma_m_m1 > ma_m_m0
+                && h1 > h0
+                && Bid > upper_m0;
 
     if (should_sell && OrderSend(Symbol(), OP_SELL, lots_x, Bid, 3, 0, 0, "x", magic_x, 0) > 0) return;
   }
