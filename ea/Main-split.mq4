@@ -28,17 +28,20 @@ input int start_gmt     = -1;// Starting hour in GMT
 input int stop_gmt      = -1;// Stopping hour in GMT
 input int friday_gmt    = -1;// Close all on Friday hour in GMT
 
+string symbol;
 bool start=false;
 datetime buy_closed_time_f, sell_closed_time_f;
 datetime buy_closed_time_c, sell_closed_time_c;
 
 int OnInit() {
+  symbol = Symbol();
   return secret == "https://stradeji.com" ? INIT_SUCCEEDED : INIT_FAILED;
 }
 
 void OnTick() {
   // Prevent abnormal spread
-  if (MarketInfo(Symbol(), MODE_SPREAD) > max_spread) return;
+  string symbol = Symbol();
+  if (MarketInfo(symbol, MODE_SPREAD) > max_spread) return;
 
   if (magic_f > 0) run_following();
   if (magic_c > 0) run_countering();
@@ -53,7 +56,7 @@ void run_following() {
   int size;
   for (int i = OrdersTotal() - 1; i >= 0; i--) {
     if (!OrderSelect(i, SELECT_BY_POS)) continue;
-    if (OrderSymbol() != Symbol() || OrderMagicNumber() == 0 || OrderMagicNumber() != magic_f) continue;
+    if (OrderSymbol() != symbol || OrderMagicNumber() == 0 || OrderMagicNumber() != magic_f) continue;
     switch (OrderType()) {
       case OP_BUY:
         size = ArraySize(buy_tickets_f);
@@ -80,10 +83,10 @@ void run_following() {
 
   double ma_h0, ma_l0, ma_m0, ma_m1, ma_hl;
 
-  ma_h0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_HIGH, 0);
-  ma_l0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
-  ma_m0 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
-  ma_m1 = iMA(Symbol(), tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
+  ma_h0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_HIGH, 0);
+  ma_l0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
+  ma_m0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
+  ma_m1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
   ma_hl = ma_h0 - ma_l0;
 
   // Close --------------------------------------------------------------------
@@ -150,7 +153,7 @@ void run_following() {
                   ? Ask < ma_m0
                   : Ask - buy_nearest_price_f > _gap_fwd || buy_nearest_price_f - Ask > _gap_bwd);
 
-  if (should_buy && OrderSend(Symbol(), OP_BUY, lots_f, Ask, 2, 0, 0, "f", magic_f, 0) > 0) return;
+  if (should_buy && OrderSend(symbol, OP_BUY, lots_f, Ask, 2, 0, 0, "f", magic_f, 0) > 0) return;
 
   should_sell  = ma_m1 > ma_m0
               && sell_count_f < max_orders_f
@@ -159,7 +162,7 @@ void run_following() {
                   ? Bid > ma_m0
                   : sell_nearest_price_f - Bid > _gap_fwd || Bid - sell_nearest_price_f > _gap_bwd);
 
-  if (should_sell && OrderSend(Symbol(), OP_SELL, lots_f, Bid, 2, 0, 0, "f", magic_f, 0) > 0) return;
+  if (should_sell && OrderSend(symbol, OP_SELL, lots_f, Bid, 2, 0, 0, "f", magic_f, 0) > 0) return;
 }
 
 void run_countering() {
@@ -170,7 +173,7 @@ void run_countering() {
   int size;
   for (int i = OrdersTotal() - 1; i >= 0; i--) {
     if (!OrderSelect(i, SELECT_BY_POS)) continue;
-    if (OrderSymbol() != Symbol() || OrderMagicNumber() == 0 || OrderMagicNumber() != magic_c) continue;
+    if (OrderSymbol() != symbol || OrderMagicNumber() == 0 || OrderMagicNumber() != magic_c) continue;
     switch (OrderType()) {
       case OP_BUY:
         size = ArraySize(buy_tickets_c);
@@ -258,7 +261,7 @@ void run_countering() {
               && (buy_count_c == 0 ||
                   buy_nearest_price_c - Ask > _gap_bwd || Ask - buy_nearest_price_c > _gap_fwd);
 
-  if (should_buy && OrderSend(Symbol(), OP_BUY, lots_c, Ask, 2, 0, 0, "c", magic_c, 0) > 0) return;
+  if (should_buy && OrderSend(symbol, OP_BUY, lots_c, Ask, 2, 0, 0, "c", magic_c, 0) > 0) return;
 
   should_sell  = Bid > ma_m0 + (0.25 * ma_hl)
               && sell_count_c < max_orders_c
@@ -266,7 +269,7 @@ void run_countering() {
               && (sell_count_c == 0 ||
                   Bid - sell_nearest_price_c > _gap_bwd || sell_nearest_price_c - Bid > _gap_fwd);
 
-  if (should_sell && OrderSend(Symbol(), OP_SELL, lots_c, Bid, 2, 0, 0, "c", magic_c, 0) > 0) return;
+  if (should_sell && OrderSend(symbol, OP_SELL, lots_c, Bid, 2, 0, 0, "c", magic_c, 0) > 0) return;
 }
 
 void run_scalping() {
