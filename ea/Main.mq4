@@ -25,6 +25,8 @@ input double tpx_f      = 0; // Total TP in ATR (F)
 input double tpx_c      = 0; // TP exceeds median in ATR (C)
 input bool auto_sl_f    = 0; // Auto SL (F)
 input bool auto_sl_c    = 0; // Auto SL (C)
+input bool auto_sl_s    = 0; // Auto SL (S)
+input bool auto_tp_s    = 0; // Auto TP (S)
 input int start_gmt     = -1;// Starting hour in GMT
 input int stop_gmt      = -1;// Stopping hour in GMT
 input int friday_gmt    = -1;// Close all on Friday hour in GMT
@@ -131,14 +133,18 @@ void OnTick() {
 
   // Get Variables -------------------------------------------------------------
 
+  double h0 = iHigh(Symbol(), tf, 0);
+  double h1 = iHigh(Symbol(), tf, 1);
+  double l0 = iLow(Symbol(), tf, 0);
+  double l1 = iLow(Symbol(), tf, 1);
   double ma_h0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_HIGH, 0);
-  double ma_h1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_HIGH, 1);
   double ma_l0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
-  double ma_l1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_LOW, 1);
   double ma_m0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   double ma_m1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
   double ma_hl = ma_h0 - ma_l0;
   double slope = MathAbs(ma_m0 - ma_m1) / ma_hl * 100;
+  double ma_x_h0 = iMA(symbol, PERIOD_M15, 4, 0, MODE_LWMA, PRICE_HIGH, 0);
+  double ma_x_l0 = iMA(symbol, PERIOD_M15, 4, 0, MODE_LWMA, PRICE_LOW, 0);
 
   // Close ---------------------------------------------------------------------
 
@@ -172,13 +178,13 @@ void OnTick() {
   }
 
   if (magic_f > 0 && auto_sl_f) {
-    if (ma_l1 > ma_l0) {
+    if (l1 > l0 + (0.1 * ma_hl)) {
       for (int i = 0; i < buy_count_f; i++) {
         if (!OrderSelect(buy_tickets_f[i], SELECT_BY_TICKET)) continue;
         if (OrderClose(OrderTicket(), OrderLots(), Bid, 2)) buy_closed_time_f = TimeCurrent();
       }
     }
-    if (ma_h1 < ma_h0) {
+    if (h1 < h0 - (0.1 * ma_hl)) {
       for (int i = 0; i < sell_count_f; i++) {
         if (!OrderSelect(sell_tickets_f[i], SELECT_BY_TICKET)) continue;
         if (OrderClose(OrderTicket(), OrderLots(), Ask, 2)) sell_closed_time_f = TimeCurrent();
@@ -199,6 +205,21 @@ void OnTick() {
     }
   }
 
+  if (magic_s > 0 && auto_sl_s) {
+    if (l1 > l0 + (0.1 * ma_hl)) {
+      for (int i = 0; i < buy_count_s; i++) {
+        if (!OrderSelect(buy_tickets_s[i], SELECT_BY_TICKET)) continue;
+        if (OrderClose(OrderTicket(), OrderLots(), Bid, 2)) buy_closed_time_s = TimeCurrent();
+      }
+    }
+    if (h1 < h0 - (0.1 * ma_hl)) {
+      for (int i = 0; i < sell_count_s; i++) {
+        if (!OrderSelect(sell_tickets_s[i], SELECT_BY_TICKET)) continue;
+        if (OrderClose(OrderTicket(), OrderLots(), Ask, 2)) sell_closed_time_s = TimeCurrent();
+      }
+    }
+  }
+
   // Take Profit ----------------------
 
   if (magic_f > 0 && tp_f > 0) {
@@ -210,6 +231,36 @@ void OnTick() {
     for (int i = 0; i < sell_count_f; i++) {
       if (!OrderSelect(sell_tickets_f[i], SELECT_BY_TICKET)) continue;
       if (OrderOpenPrice() - Ask > _tp && OrderClose(OrderTicket(), OrderLots(), Ask, 2)) continue;
+    }
+  }
+
+  if (magic_f > 0 && tpx_f > 0) {
+    if (buy_pl_f > tpx_f * ma_hl) {
+      for (int i = 0; i < buy_count_f; i++) {
+        if (!OrderSelect(buy_tickets_f[i], SELECT_BY_TICKET)) continue;
+        if (OrderClose(OrderTicket(), OrderLots(), Bid, 2)) continue;
+      }
+    }
+    if (sell_pl_f > tpx_f * ma_hl) {
+      for (int i = 0; i < sell_count_f; i++) {
+        if (!OrderSelect(sell_tickets_f[i], SELECT_BY_TICKET)) continue;
+        if (OrderClose(OrderTicket(), OrderLots(), Ask, 2)) continue;
+      }
+    }
+  }
+
+  if (magic_c > 0 && tpx_c > 0) {
+    if (buy_pl_c > 0 && Bid > ma_m0 + (tpx_c * ma_hl)) {
+      for (int i = 0; i < buy_count_c; i++) {
+        if (!OrderSelect(buy_tickets_c[i], SELECT_BY_TICKET)) continue;
+        if (OrderClose(OrderTicket(), OrderLots(), Bid, 2)) continue;
+      }
+    }
+    if (sell_pl_c > 0 && Ask < ma_m0 - (tpx_c * ma_hl)) {
+      for (int i = 0; i < sell_count_c; i++) {
+        if (!OrderSelect(sell_tickets_c[i], SELECT_BY_TICKET)) continue;
+        if (OrderClose(OrderTicket(), OrderLots(), Ask, 2)) continue;
+      }
     }
   }
 
@@ -225,32 +276,20 @@ void OnTick() {
     }
   }
 
-  if (magic_f > 0 && tpx_f > 0) {
-    if (buy_pl_f > tpx_f * ma_hl) {
-      for (int i = 0; i < buy_count_f; i++) {
-        if (!OrderSelect(buy_tickets_f[i], SELECT_BY_TICKET)) continue;
-        if (OrderClose(OrderTicket(), OrderLots(), Bid, 2)) buy_closed_time_f = TimeCurrent();
+  if (magic_s > 0 && auto_tp_s) {
+    double m0 = iMA(symbol, PERIOD_M5, 4, 0, MODE_LWMA, PRICE_MEDIAN, 0);
+    double m1 = iMA(symbol, PERIOD_M5, 4, 0, MODE_LWMA, PRICE_MEDIAN, 1);
+    double m2 = iMA(symbol, PERIOD_M5, 4, 0, MODE_LWMA, PRICE_MEDIAN, 2);
+    if (m2 < m1 && m1 > m0) {
+      for (int i = 0; i < buy_count_s; i++) {
+        if (!OrderSelect(buy_tickets_s[i], SELECT_BY_TICKET)) continue;
+        if (OrderProfit() > 0 && OrderClose(OrderTicket(), OrderLots(), Bid, 2)) continue;
       }
     }
-    if (sell_pl_f > tpx_f * ma_hl) {
-      for (int i = 0; i < sell_count_f; i++) {
-        if (!OrderSelect(sell_tickets_f[i], SELECT_BY_TICKET)) continue;
-        if (OrderClose(OrderTicket(), OrderLots(), Ask, 2)) sell_closed_time_f = TimeCurrent();
-      }
-    }
-  }
-
-  if (magic_c > 0 && tpx_c > 0) {
-    if (buy_pl_c > 0 && Bid > ma_m0 + (tpx_c * ma_hl)) {
-      for (int i = 0; i < buy_count_c; i++) {
-        if (!OrderSelect(buy_tickets_c[i], SELECT_BY_TICKET)) continue;
-        if (OrderClose(OrderTicket(), OrderLots(), Bid, 2)) buy_closed_time_c = TimeCurrent();
-      }
-    }
-    if (sell_pl_c > 0 && Ask < ma_m0 - (tpx_c * ma_hl)) {
-      for (int i = 0; i < sell_count_c; i++) {
-        if (!OrderSelect(sell_tickets_c[i], SELECT_BY_TICKET)) continue;
-        if (OrderClose(OrderTicket(), OrderLots(), Ask, 2)) sell_closed_time_c = TimeCurrent();
+    if (m2 > m1 && m1 < m0) {
+      for (int i = 0; i < sell_count_s; i++) {
+        if (!OrderSelect(sell_tickets_s[i], SELECT_BY_TICKET)) continue;
+        if (OrderProfit() > 0 && OrderClose(OrderTicket(), OrderLots(), Ask, 2)) continue;
       }
     }
   }
@@ -268,7 +307,7 @@ void OnTick() {
   // Following -------------------------
 
   if (magic_f > 0) {
-    should_buy   = ma_m1 < ma_m0 && ma_l1 < ma_l0
+    should_buy   = ma_m1 < ma_m0 && l1 < l0 && Ask < ma_x_h0
                 && buy_count_f < max_orders_f
                 && TimeCurrent() - buy_closed_time_f > 300
                 && (buy_count_f == 0
@@ -277,7 +316,7 @@ void OnTick() {
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_f, Ask, 2, 0, 0, "f", magic_f, 0) > 0) return;
 
-    should_sell  = ma_m1 > ma_m0 && ma_h1 > ma_h0
+    should_sell  = ma_m1 > ma_m0 && h1 > h0 && Bid > ma_x_l0
                 && sell_count_f < max_orders_f
                 && TimeCurrent() - sell_closed_time_f > 300
                 && (sell_count_f == 0
@@ -308,34 +347,19 @@ void OnTick() {
   // Scalping --------------------------
 
   if (magic_s > 0) {
-    if (TimeHour(TimeGMT()) < 8 || TimeHour(TimeGMT()) >= 18) return;
-
-    double ma_d_h0 = iMA(symbol, PERIOD_D1, 4, 0, MODE_LWMA, PRICE_HIGH, 0);
-    double ma_d_h1 = iMA(symbol, PERIOD_D1, 4, 0, MODE_LWMA, PRICE_HIGH, 1);
-    double ma_d_l0 = iMA(symbol, PERIOD_D1, 4, 0, MODE_LWMA, PRICE_LOW, 0);
-    double ma_d_l1 = iMA(symbol, PERIOD_D1, 4, 0, MODE_LWMA, PRICE_LOW, 1);
-    double ma_d_m0 = iMA(symbol, PERIOD_D1, 4, 0, MODE_LWMA, PRICE_MEDIAN, 0);
-    double ma_d_m1 = iMA(symbol, PERIOD_D1, 4, 0, MODE_LWMA, PRICE_MEDIAN, 1);
-    double ma_d_hl = ma_d_h0 - ma_d_l0;
-    double ma_h_h0 = iMA(symbol, PERIOD_H1, 4, 0, MODE_LWMA, PRICE_HIGH, 0);
-    double ma_h_l0 = iMA(symbol, PERIOD_H1, 4, 0, MODE_LWMA, PRICE_LOW, 0);
-    double ma_h_m0 = iMA(symbol, PERIOD_H1, 4, 0, MODE_LWMA, PRICE_MEDIAN, 0);
-    double ma_h_m1 = iMA(symbol, PERIOD_H1, 4, 0, MODE_LWMA, PRICE_MEDIAN, 1);
     double ma_m_m0 = iMA(symbol, PERIOD_M1, 8, 0, MODE_LWMA, PRICE_MEDIAN, 0);
     double ma_m_m1 = iMA(symbol, PERIOD_M1, 8, 0, MODE_LWMA, PRICE_MEDIAN, 1);
     double ma_m_m2 = iMA(symbol, PERIOD_M1, 8, 0, MODE_LWMA, PRICE_MEDIAN, 2);
 
-    should_buy   = ma_d_m1 < ma_d_m0 && ma_h_m1 < ma_h_m0
+    should_buy   = ma_m1 < ma_m0 && l1 < l0 && Ask < ma_x_h0
                 && ma_m_m2 > ma_m_m1 && ma_m_m1 < ma_m_m0
-                && ma_d_l1 < ma_d_l0 && Ask < ma_h_h0
-                && (buy_count_s == 0 || MathAbs(Ask - buy_nearest_price_s) > 0.2 * ma_d_hl);
+                && (buy_count_s == 0 || MathAbs(Ask - buy_nearest_price_s) > 0.2 * ma_hl);
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_s, Ask, 2, 0, 0, "s", magic_s, 0) > 0) return;
 
-    should_sell  = ma_d_m1 > ma_d_m0 && ma_h_m1 > ma_h_m0
+    should_sell  = ma_m1 > ma_m0 && h1 > h0 && Bid > ma_x_l0
                 && ma_m_m2 < ma_m_m1 && ma_m_m1 > ma_m_m0
-                && ma_d_h1 > ma_d_h0 && Bid > ma_h_l0
-                && (sell_count_s == 0 || MathAbs(sell_nearest_price_s - Bid) > 0.2 * ma_d_hl);
+                && (sell_count_s == 0 || MathAbs(sell_nearest_price_s - Bid) > 0.2 * ma_hl);
 
     if (should_sell && OrderSend(symbol, OP_SELL, lots_s, Bid, 2, 0, 0, "s", magic_s, 0) > 0) return;
   }
