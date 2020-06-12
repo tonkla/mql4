@@ -281,14 +281,14 @@ void OnTick() {
     if (m2 < m1 && m1 > m0) {
       for (int i = 0; i < buy_count_s; i++) {
         if (!OrderSelect(buy_tickets_s[i], SELECT_BY_TICKET)) continue;
-        if (OrderProfit() + OrderCommission() > 0
+        if (OrderProfit() + OrderCommission() + OrderSwap() > 0
             && OrderClose(OrderTicket(), OrderLots(), Bid, 2)) continue;
       }
     }
     if (m2 > m1 && m1 < m0) {
       for (int i = 0; i < sell_count_s; i++) {
         if (!OrderSelect(sell_tickets_s[i], SELECT_BY_TICKET)) continue;
-        if (OrderProfit() + OrderCommission() > 0
+        if (OrderProfit() + OrderCommission() + OrderSwap() > 0
             && OrderClose(OrderTicket(), OrderLots(), Ask, 2)) continue;
       }
     }
