@@ -277,15 +277,14 @@ void OnTick() {
   if (magic_s > 0 && auto_tp_s) {
     double m0 = iMA(symbol, PERIOD_M5, 6, 0, MODE_LWMA, PRICE_MEDIAN, 0);
     double m1 = iMA(symbol, PERIOD_M5, 6, 0, MODE_LWMA, PRICE_MEDIAN, 1);
-    double m2 = iMA(symbol, PERIOD_M5, 6, 0, MODE_LWMA, PRICE_MEDIAN, 2);
-    if (m2 < m1 && m1 > m0) {
+    if (m1 > m0) {
       for (int i = 0; i < buy_count_s; i++) {
         if (!OrderSelect(buy_tickets_s[i], SELECT_BY_TICKET)) continue;
         if (OrderProfit() + OrderCommission() + OrderSwap() > 0
             && OrderClose(OrderTicket(), OrderLots(), Bid, 2)) continue;
       }
     }
-    if (m2 > m1 && m1 < m0) {
+    if (m1 < m0) {
       for (int i = 0; i < sell_count_s; i++) {
         if (!OrderSelect(sell_tickets_s[i], SELECT_BY_TICKET)) continue;
         if (OrderProfit() + OrderCommission() + OrderSwap() > 0
