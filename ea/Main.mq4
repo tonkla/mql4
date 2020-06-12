@@ -133,8 +133,8 @@ void OnTick() {
 
   // Get Variables -------------------------------------------------------------
 
-  double h1 = iHigh(Symbol(), tf, 1);
-  double l1 = iLow(Symbol(), tf, 1);
+  double h1 = iHigh(symbol, tf, 1);
+  double l1 = iLow(symbol, tf, 1);
   double ma_h0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_HIGH, 0);
   double ma_l0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
   double ma_m0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
