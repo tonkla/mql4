@@ -35,7 +35,6 @@ string symbol;
 bool start=false;
 datetime buy_closed_time_f, sell_closed_time_f;
 datetime buy_closed_time_c, sell_closed_time_c;
-datetime buy_closed_time_s, sell_closed_time_s;
 
 int OnInit() {
   symbol = Symbol();
@@ -283,15 +282,15 @@ void OnTick() {
     if (m1 > m0 || Bid < _l - (0.05 * ma_hl)) {
       for (int i = 0; i < buy_count_s; i++) {
         if (!OrderSelect(buy_tickets_s[i], SELECT_BY_TICKET)) continue;
-        if (OrderProfit() + OrderCommission() + OrderSwap() > 0
-            && OrderClose(OrderTicket(), OrderLots(), Bid, 2)) buy_closed_time_s = TimeCurrent();
+        if (OrderProfit() + OrderCommission() + OrderSwap() > 1
+            && OrderClose(OrderTicket(), OrderLots(), Bid, 2)) continue;
       }
     }
     if (m1 < m0 || Ask > _h + (0.05 * ma_hl)) {
       for (int i = 0; i < sell_count_s; i++) {
         if (!OrderSelect(sell_tickets_s[i], SELECT_BY_TICKET)) continue;
-        if (OrderProfit() + OrderCommission() + OrderSwap() > 0
-            && OrderClose(OrderTicket(), OrderLots(), Ask, 2)) sell_closed_time_s = TimeCurrent();
+        if (OrderProfit() + OrderCommission() + OrderSwap() > 1
+            && OrderClose(OrderTicket(), OrderLots(), Ask, 2)) continue;
       }
     }
   }
@@ -355,14 +354,12 @@ void OnTick() {
 
     should_buy   = ma_m1 < ma_m0 && l1 < Ask && Ask < ma_x_h0
                 && ma_m_m2 > ma_m_m1 && ma_m_m1 < ma_m_m0
-                && TimeCurrent() - buy_closed_time_s > 120
                 && (buy_count_s == 0 || MathAbs(Ask - buy_nearest_price_s) > 0.2 * ma_hl);
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_s, Ask, 2, 0, 0, "s", magic_s, 0) > 0) return;
 
     should_sell  = ma_m1 > ma_m0 && h1 > Bid && Bid > ma_x_l0
                 && ma_m_m2 < ma_m_m1 && ma_m_m1 > ma_m_m0
-                && TimeCurrent() - sell_closed_time_s > 120
                 && (sell_count_s == 0 || MathAbs(sell_nearest_price_s - Bid) > 0.2 * ma_hl);
 
     if (should_sell && OrderSend(symbol, OP_SELL, lots_s, Bid, 2, 0, 0, "s", magic_s, 0) > 0) return;
