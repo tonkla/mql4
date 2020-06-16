@@ -18,7 +18,9 @@ input int max_orders_f  = 0; // Maximum allowed orders (F)
 input int max_orders_c  = 0; // Maximum allowed orders (C)
 input double gap_f      = 0; // Gap between orders in ATR (F)
 input double gap_c      = 0; // Gap between orders in ATR (C)
+input double sl_f       = 0; // Single SL in ATR (F)
 input double tp_f       = 0; // Single TP in ATR (F)
+input double sl_s       = 0; // Single SL in ATR (S)
 input double tp_s       = 0; // Single TP in ATR (S)
 input double slx_f      = 0; // Total SL in ATR (F)
 input double tpx_f      = 0; // Total TP in ATR (F)
@@ -141,8 +143,6 @@ void OnTick() {
   double ma_m1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
   double ma_hl = ma_h0 - ma_l0;
   double slope = MathAbs(ma_m0 - ma_m1) / ma_hl * 100;
-  double ma_x_h0 = iMA(symbol, PERIOD_M15, 4, 0, MODE_LWMA, PRICE_HIGH, 0);
-  double ma_x_l0 = iMA(symbol, PERIOD_M15, 4, 0, MODE_LWMA, PRICE_LOW, 0);
 
   // Close ---------------------------------------------------------------------
 
@@ -159,6 +159,18 @@ void OnTick() {
   }
 
   // Stop Loss ------------------------
+
+  if (magic_f > 0 && sl_f > 0) {
+    double _sl = sl_f * ma_hl;
+    for (int i = 0; i < buy_count_f; i++) {
+      if (!OrderSelect(buy_tickets_f[i], SELECT_BY_TICKET)) continue;
+      if (OrderOpenPrice() - Bid > _sl && OrderClose(OrderTicket(), OrderLots(), Bid, 2)) continue;
+    }
+    for (int i = 0; i < sell_count_f; i++) {
+      if (!OrderSelect(sell_tickets_f[i], SELECT_BY_TICKET)) continue;
+      if (Ask - OrderOpenPrice() > _sl && OrderClose(OrderTicket(), OrderLots(), Ask, 2)) continue;
+    }
+  }
 
   if (magic_f > 0 && slx_f > 0) {
     if (buy_pl_f < 0 && MathAbs(buy_pl_f) > slx_f * ma_hl) {
@@ -200,6 +212,18 @@ void OnTick() {
       if (!OrderSelect(sell_tickets_c[i], SELECT_BY_TICKET)) continue;
       if (OrderOpenPrice() < ma_m0 && OrderClose(OrderTicket(), OrderLots(), Ask, 2))
         sell_closed_time_c = TimeCurrent();
+    }
+  }
+
+  if (magic_s > 0 && sl_s > 0) {
+    double _sl = sl_s * ma_hl;
+    for (int i = 0; i < buy_count_s; i++) {
+      if (!OrderSelect(buy_tickets_s[i], SELECT_BY_TICKET)) continue;
+      if (OrderOpenPrice() - Bid > _sl && OrderClose(OrderTicket(), OrderLots(), Bid, 2)) continue;
+    }
+    for (int i = 0; i < sell_count_s; i++) {
+      if (!OrderSelect(sell_tickets_s[i], SELECT_BY_TICKET)) continue;
+      if (Ask - OrderOpenPrice() > _sl && OrderClose(OrderTicket(), OrderLots(), Ask, 2)) continue;
     }
   }
 
@@ -308,7 +332,7 @@ void OnTick() {
   // Following -------------------------
 
   if (magic_f > 0) {
-    should_buy   = ma_m1 < ma_m0 && l1 < Ask && Ask < ma_x_h0
+    should_buy   = ma_m1 < ma_m0 && l1 < Ask && Ask < ma_h0
                 && buy_count_f < max_orders_f
                 && TimeCurrent() - buy_closed_time_f > 300
                 && (buy_count_f == 0
@@ -317,7 +341,7 @@ void OnTick() {
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_f, Ask, 2, 0, 0, "f", magic_f, 0) > 0) return;
 
-    should_sell  = ma_m1 > ma_m0 && h1 > Bid && Bid > ma_x_l0
+    should_sell  = ma_m1 > ma_m0 && h1 > Bid && Bid > ma_l0
                 && sell_count_f < max_orders_f
                 && TimeCurrent() - sell_closed_time_f > 300
                 && (sell_count_f == 0
@@ -352,13 +376,13 @@ void OnTick() {
     double ma_m_m1 = iMA(symbol, PERIOD_M1, 8, 0, MODE_LWMA, PRICE_MEDIAN, 1);
     double ma_m_m2 = iMA(symbol, PERIOD_M1, 8, 0, MODE_LWMA, PRICE_MEDIAN, 2);
 
-    should_buy   = ma_m1 < ma_m0 && l1 < Ask && Ask < ma_x_h0
+    should_buy   = ma_m1 < ma_m0 && l1 < Ask && Ask < ma_h0
                 && ma_m_m2 > ma_m_m1 && ma_m_m1 < ma_m_m0
                 && (buy_count_s == 0 || MathAbs(Ask - buy_nearest_price_s) > 0.2 * ma_hl);
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_s, Ask, 2, 0, 0, "s", magic_s, 0) > 0) return;
 
-    should_sell  = ma_m1 > ma_m0 && h1 > Bid && Bid > ma_x_l0
+    should_sell  = ma_m1 > ma_m0 && h1 > Bid && Bid > ma_l0
                 && ma_m_m2 < ma_m_m1 && ma_m_m1 > ma_m_m0
                 && (sell_count_s == 0 || MathAbs(sell_nearest_price_s - Bid) > 0.2 * ma_hl);
 
