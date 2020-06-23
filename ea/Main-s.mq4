@@ -96,6 +96,8 @@ void OnTick() {
 
   // Get Variables -------------------------------------------------------------
 
+  double h0 = iHigh(symbol, tf, 0);
+  double l0 = iLow(symbol, tf, 0);
   double h1 = iHigh(symbol, tf, 1);
   double l1 = iLow(symbol, tf, 1);
   double open = iOpen(symbol, tf, 0);
@@ -327,13 +329,13 @@ void OnTick() {
   // S2 --------------------------------
 
   if (magic_s2 > 0) {
-    should_buy   = Ask > open
+    should_buy   = Ask > open && Ask - l0 < 0.8 * ma_hl
                 && ma_m_m2 < ma_m_m1 && ma_m_m1 < ma_m_m0
                 && (buy_count_s2 == 0 || MathAbs(Ask - buy_nearest_price_s2) > 0.2 * ma_hl);
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_s2, Ask, 2, 0, 0, "s2", magic_s2, 0) > 0) return;
 
-    should_sell  = Bid < open
+    should_sell  = Bid < open && h0 - Bid < 0.8 * ma_hl
                 && ma_m_m2 > ma_m_m1 && ma_m_m1 > ma_m_m0
                 && (sell_count_s2 == 0 || MathAbs(sell_nearest_price_s2 - Bid) > 0.2 * ma_hl);
 
