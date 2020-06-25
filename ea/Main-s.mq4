@@ -1,6 +1,6 @@
 #property copyright "TRADEiS"
 #property link      "https://stradeji.com"
-#property version   "1.9"
+#property version   "1.10"
 #property strict
 
 input string secret     = "";// Secret spell to summon the EA
@@ -96,19 +96,16 @@ void OnTick() {
 
   // Get Variables -------------------------------------------------------------
 
+  double open = iOpen(symbol, tf, 0);
   double h0 = iHigh(symbol, tf, 0);
   double l0 = iLow(symbol, tf, 0);
   double h1 = iHigh(symbol, tf, 1);
   double l1 = iLow(symbol, tf, 1);
-  double open = iOpen(symbol, tf, 0);
   double ma_h0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_HIGH, 0);
   double ma_l0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
   double ma_m0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   double ma_m1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
   double ma_hl = ma_h0 - ma_l0;
-  double ma_m_m0 = iMA(symbol, PERIOD_M1, 8, 0, MODE_LWMA, PRICE_MEDIAN, 0);
-  double ma_m_m1 = iMA(symbol, PERIOD_M1, 8, 0, MODE_LWMA, PRICE_MEDIAN, 1);
-  double ma_m_m2 = iMA(symbol, PERIOD_M1, 8, 0, MODE_LWMA, PRICE_MEDIAN, 2);
 
   // Close ---------------------------------------------------------------------
 
@@ -314,14 +311,12 @@ void OnTick() {
 
   if (magic_s1 > 0) {
     should_buy   = ma_m1 < ma_m0 && l1 < Ask && Ask < ma_h0
-                && ma_m_m2 < ma_m_m1 && ma_m_m1 < ma_m_m0
-                && (buy_count_s1 == 0 || MathAbs(Ask - buy_nearest_price_s1) > 0.2 * ma_hl);
+                && (buy_count_s1 == 0 || MathAbs(Ask - buy_nearest_price_s1) > 0.25 * ma_hl);
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_s1, Ask, 2, 0, 0, "s1", magic_s1, 0) > 0) return;
 
     should_sell  = ma_m1 > ma_m0 && h1 > Bid && Bid > ma_l0
-                && ma_m_m2 > ma_m_m1 && ma_m_m1 > ma_m_m0
-                && (sell_count_s1 == 0 || MathAbs(sell_nearest_price_s1 - Bid) > 0.2 * ma_hl);
+                && (sell_count_s1 == 0 || MathAbs(sell_nearest_price_s1 - Bid) > 0.25 * ma_hl);
 
     if (should_sell && OrderSend(symbol, OP_SELL, lots_s1, Bid, 2, 0, 0, "s1", magic_s1, 0) > 0) return;
   }
@@ -330,14 +325,12 @@ void OnTick() {
 
   if (magic_s2 > 0) {
     should_buy   = Ask > open && Ask - l0 < 0.8 * ma_hl
-                && ma_m_m2 < ma_m_m1 && ma_m_m1 < ma_m_m0
-                && (buy_count_s2 == 0 || MathAbs(Ask - buy_nearest_price_s2) > 0.2 * ma_hl);
+                && (buy_count_s2 == 0 || MathAbs(Ask - buy_nearest_price_s2) > 0.25 * ma_hl);
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_s2, Ask, 2, 0, 0, "s2", magic_s2, 0) > 0) return;
 
     should_sell  = Bid < open && h0 - Bid < 0.8 * ma_hl
-                && ma_m_m2 > ma_m_m1 && ma_m_m1 > ma_m_m0
-                && (sell_count_s2 == 0 || MathAbs(sell_nearest_price_s2 - Bid) > 0.2 * ma_hl);
+                && (sell_count_s2 == 0 || MathAbs(sell_nearest_price_s2 - Bid) > 0.25 * ma_hl);
 
     if (should_sell && OrderSend(symbol, OP_SELL, lots_s2, Bid, 2, 0, 0, "s2", magic_s2, 0) > 0) return;
   }
