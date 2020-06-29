@@ -54,7 +54,7 @@ void OnTick() {
   double buy_nearest_price_c=0, sell_nearest_price_c=0;
   double buy_nearest_price_s=0, sell_nearest_price_s=0;
   double buy_pl_f=0, sell_pl_f=0;
-  // double buy_pl_c=0, sell_pl_c=0;
+  double buy_pl_c=0, sell_pl_c=0;
   bool closed=false;
 
   int size;
@@ -91,7 +91,7 @@ void OnTick() {
           if (buy_nearest_price_c == 0 || MathAbs(OrderOpenPrice() - Ask) < MathAbs(buy_nearest_price_c - Ask)) {
             buy_nearest_price_c = OrderOpenPrice();
           }
-          // buy_pl_c += Bid - OrderOpenPrice();
+          buy_pl_c += Bid - OrderOpenPrice();
           break;
         case OP_SELL:
           size = ArraySize(sell_tickets_c);
@@ -100,7 +100,7 @@ void OnTick() {
           if (sell_nearest_price_c == 0 || MathAbs(OrderOpenPrice() - Bid) < MathAbs(sell_nearest_price_c - Bid)) {
             sell_nearest_price_c = OrderOpenPrice();
           }
-          // sell_pl_c += OrderOpenPrice() - Ask;
+          sell_pl_c += OrderOpenPrice() - Ask;
           break;
       }
     } else if (OrderMagicNumber() == magic_s) {
@@ -136,9 +136,14 @@ void OnTick() {
 
   double ma_h0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_HIGH, 0);
   double ma_l0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
+  double ma_h1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_HIGH, 1);
+  double ma_l1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_LOW, 1);
   double ma_m0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   double ma_m1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
   double ma_hl = ma_h0 - ma_l0;
+  double close1 = iClose(symbol, tf, 1);
+  double high1 = iHigh(symbol, tf, 1);
+  double low1 = iLow(symbol, tf, 1);
 
   // Close ---------------------------------------------------------------------
 
@@ -285,15 +290,15 @@ void OnTick() {
   }
 
   if (magic_f > 0 && auto_sl_f) {
-    for (int i = 0; i < buy_count_f; i++) {
-      if (!OrderSelect(buy_tickets_f[i], SELECT_BY_TICKET)) continue;
-      if (OrderOpenPrice() > ma_h0 && OrderClose(OrderTicket(), OrderLots(), Bid, 2)) closed = true;
-    }
-    for (int i = 0; i < sell_count_f; i++) {
-      if (!OrderSelect(sell_tickets_f[i], SELECT_BY_TICKET)) continue;
-      if (OrderOpenPrice() < ma_l0 && OrderClose(OrderTicket(), OrderLots(), Ask, 2)) closed = true;
-    }
-    if (closed) return;
+    // for (int i = 0; i < buy_count_f; i++) {
+    //   if (!OrderSelect(buy_tickets_f[i], SELECT_BY_TICKET)) continue;
+    //   if (OrderOpenPrice() > ma_h0 && OrderClose(OrderTicket(), OrderLots(), Bid, 2)) closed = true;
+    // }
+    // for (int i = 0; i < sell_count_f; i++) {
+    //   if (!OrderSelect(sell_tickets_f[i], SELECT_BY_TICKET)) continue;
+    //   if (OrderOpenPrice() < ma_l0 && OrderClose(OrderTicket(), OrderLots(), Ask, 2)) closed = true;
+    // }
+    // if (closed) return;
   }
 
   if (magic_c > 0 && auto_sl_c) {
@@ -347,21 +352,21 @@ void OnTick() {
   if (magic_f > 0) {
     should_buy   = buy_count_f < max_orders_f
                 && ma_m1 < ma_m0
-                && Ask < ma_m0 + (0.25 * ma_hl)
+                && Ask < high1
                 && (buy_count_f == 0
-                    ? Ask < ma_m0
+                    ? Ask < close1 - (0.2 * ma_hl)
                     : Ask - buy_nearest_price_f > gap_f * ma_hl ||
-                      buy_nearest_price_f - Ask > gap_f * ma_hl * 3);
+                      buy_nearest_price_f - Ask > gap_f * ma_hl * 4);
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_f, Ask, 2, 0, 0, "f", magic_f, 0) > 0) return;
 
     should_sell  = sell_count_f < max_orders_f
                 && ma_m1 > ma_m0
-                && Bid > ma_m0 - (0.25 * ma_hl)
+                && Bid > low1
                 && (sell_count_f == 0
-                    ? Bid > ma_m0
+                    ? Bid > close1 + (0.2 * ma_hl)
                     : sell_nearest_price_f - Bid > gap_f * ma_hl ||
-                      Bid - sell_nearest_price_f > gap_f * ma_hl * 3);
+                      Bid - sell_nearest_price_f > gap_f * ma_hl * 4);
 
     if (should_sell && OrderSend(symbol, OP_SELL, lots_f, Bid, 2, 0, 0, "f", magic_f, 0) > 0) return;
   }
@@ -370,14 +375,20 @@ void OnTick() {
 
   if (magic_c > 0) {
     should_buy   = buy_count_c < max_orders_c
+                && close1 < ma_h1
                 && Ask < ma_m0 - (0.25 * ma_hl)
-                && (buy_count_c == 0 || MathAbs(buy_nearest_price_c - Ask) > gap_c * ma_hl);
+                && (buy_count_c == 0 ||
+                    Ask - buy_nearest_price_c > gap_c * ma_hl ||
+                    buy_nearest_price_c - Ask > gap_c * ma_hl * 4);
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_c, Ask, 2, 0, 0, "c", magic_c, 0) > 0) return;
 
     should_sell  = sell_count_c < max_orders_c
+                && close1 > ma_l1
                 && Bid > ma_m0 + (0.25 * ma_hl)
-                && (sell_count_c == 0 || MathAbs(Bid - sell_nearest_price_c) > gap_c * ma_hl);
+                && (sell_count_c == 0 ||
+                    sell_nearest_price_c - Bid > gap_c * ma_hl ||
+                    Bid - sell_nearest_price_c > gap_c * ma_hl * 4);
 
     if (should_sell && OrderSend(symbol, OP_SELL, lots_c, Bid, 2, 0, 0, "c", magic_c, 0) > 0) return;
   }
@@ -386,24 +397,20 @@ void OnTick() {
 
   if (magic_s > 0) {
     should_buy   = buy_count_s < max_orders_s
-                && ma_m1 < ma_m0
-                && Ask < ma_h0
-                && buy_count_f == 0
-                && (buy_count_s == 0
-                    ? Ask < ma_h0 - (0.25 * ma_hl)
-                    : Ask - buy_nearest_price_s > gap_s * ma_hl ||
-                      buy_nearest_price_s - Ask > gap_s * ma_hl * 3);
+                && Ask < ma_h0 - (0.25 * ma_hl)
+                && buy_count_f == 0 && buy_pl_c > 0.2 * ma_hl
+                && (buy_count_s == 0 ||
+                    Ask - buy_nearest_price_s > gap_s * ma_hl ||
+                    buy_nearest_price_s - Ask > gap_s * ma_hl * 4);
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_s, Ask, 2, 0, 0, "s", magic_s, 0) > 0) return;
 
     should_sell  = sell_count_s < max_orders_s
-                && ma_m1 > ma_m0
-                && Bid > ma_l0
-                && sell_count_f == 0
-                && (sell_count_s == 0
-                    ? Bid > ma_l0 + (0.25 * ma_hl)
-                    : sell_nearest_price_s - Bid > gap_s * ma_hl ||
-                      Bid - sell_nearest_price_s > gap_s * ma_hl * 3);
+                && Bid > ma_l0 + (0.25 * ma_hl)
+                && sell_count_f == 0 && sell_pl_c > 0.2 * ma_hl
+                && (sell_count_s == 0 ||
+                    sell_nearest_price_s - Bid > gap_s * ma_hl ||
+                    Bid - sell_nearest_price_s > gap_s * ma_hl * 4);
 
     if (should_sell && OrderSend(symbol, OP_SELL, lots_s, Bid, 2, 0, 0, "s", magic_s, 0) > 0) return;
   }
