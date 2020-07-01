@@ -333,8 +333,8 @@ void OnTick() {
 
   if (magic_b > 0) {
     should_buy   = buy_count_b < max_orders_b
-                && Ask < high1 - d_25
-                && sell_count_a == 0 && buy_pl_a > d_25
+                && sell_count_a == 0 && buy_count_a > 0
+                && Ask < buy_nearest_price_a
                 && (buy_count_b == 0 ||
                     Ask - buy_nearest_price_b > gap * ma_hl ||
                     buy_nearest_price_b - Ask > gap * ma_hl * 4);
@@ -342,8 +342,8 @@ void OnTick() {
     if (should_buy && OrderSend(symbol, OP_BUY, lots_b, Ask, 2, 0, 0, "B", magic_b, 0) > 0) return;
 
     should_sell  = sell_count_b < max_orders_b
-                && Bid > low1 + d_25
-                && buy_count_a == 0 && sell_pl_a > d_25
+                && buy_count_a == 0 && sell_count_a > 0
+                && Bid > sell_nearest_price_a
                 && (sell_count_b == 0 ||
                     sell_nearest_price_b - Bid > gap * ma_hl ||
                     Bid - sell_nearest_price_b > gap * ma_hl * 4);
@@ -375,8 +375,8 @@ void OnTick() {
 
   if (magic_d > 0) {
     should_buy   = buy_count_d < max_orders_d
-                && Ask < ma_h0 - d_25
-                && sell_count_c == 0 && buy_pl_c > d_25
+                && sell_count_c == 0 && buy_count_c > 0
+                && Ask < buy_nearest_price_c
                 && (buy_count_d == 0 ||
                     Ask - buy_nearest_price_d > gap * ma_hl ||
                     buy_nearest_price_d - Ask > gap * ma_hl * 4);
@@ -384,8 +384,8 @@ void OnTick() {
     if (should_buy && OrderSend(symbol, OP_BUY, lots_d, Ask, 2, 0, 0, "D", magic_d, 0) > 0) return;
 
     should_sell  = sell_count_d < max_orders_d
-                && Bid > ma_l0 + d_25
-                && buy_count_c == 0 && sell_pl_c > d_25
+                && buy_count_c == 0 && sell_count_c > 0
+                && Bid > sell_nearest_price_c
                 && (sell_count_d == 0 ||
                     sell_nearest_price_d - Bid > gap * ma_hl ||
                     Bid - sell_nearest_price_d > gap * ma_hl * 4);
