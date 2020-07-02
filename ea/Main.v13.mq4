@@ -164,10 +164,13 @@ void OnTick() {
   double ma_l0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_LOW, 0);
   double ma_h1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_HIGH, 1);
   double ma_l1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_LOW, 1);
+  double ma_h2 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_HIGH, 2);
+  double ma_l2 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_LOW, 2);
   double ma_m0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   double ma_m1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
   double ma_hl = ma_h0 - ma_l0;
   double close1 = iClose(symbol, tf, 1);
+  double close2 = iClose(symbol, tf, 2);
   double high0 = iHigh(symbol, tf, 0);
   double high1 = iHigh(symbol, tf, 1);
   double low0 = iLow(symbol, tf, 0);
@@ -333,7 +336,7 @@ void OnTick() {
 
   if (magic_b > 0) {
     should_buy   = buy_count_b < max_orders_b
-                && sell_count_a == 0 && buy_count_a > 0
+                && buy_count_a > 0
                 && Ask < buy_nearest_price_a
                 && (buy_count_b == 0 ||
                     Ask - buy_nearest_price_b > gap * ma_hl ||
@@ -342,7 +345,7 @@ void OnTick() {
     if (should_buy && OrderSend(symbol, OP_BUY, lots_b, Ask, 2, 0, 0, "B", magic_b, 0) > 0) return;
 
     should_sell  = sell_count_b < max_orders_b
-                && buy_count_a == 0 && sell_count_a > 0
+                && sell_count_a > 0
                 && Bid > sell_nearest_price_a
                 && (sell_count_b == 0 ||
                     sell_nearest_price_b - Bid > gap * ma_hl ||
@@ -355,7 +358,7 @@ void OnTick() {
 
   if (magic_c > 0) {
     should_buy   = buy_count_c < max_orders_c
-                && close1 > ma_l1
+                && close2 > ma_l2 - d_25 && close1 > ma_l1 - d_25
                 && Ask < ma_m0 - d_25 && Ask > ma_l0 - d_50
                 && (buy_count_c == 0 ||
                     Ask - buy_nearest_price_c > gap * ma_hl ||
@@ -364,7 +367,7 @@ void OnTick() {
     if (should_buy && OrderSend(symbol, OP_BUY, lots_c, Ask, 2, 0, 0, "C", magic_c, 0) > 0) return;
 
     should_sell  = sell_count_c < max_orders_c
-                && close1 < ma_h1
+                && close2 < ma_h2 + d_25 && close1 < ma_h1 + d_25
                 && Bid > ma_m0 + d_25 && Bid < ma_h0 + d_50
                 && (sell_count_c == 0 ||
                     sell_nearest_price_c - Bid > gap * ma_hl ||
@@ -375,7 +378,7 @@ void OnTick() {
 
   if (magic_d > 0) {
     should_buy   = buy_count_d < max_orders_d
-                && sell_count_c == 0 && buy_count_c > 0
+                && buy_count_c > 0
                 && Ask < buy_nearest_price_c
                 && (buy_count_d == 0 ||
                     Ask - buy_nearest_price_d > gap * ma_hl ||
@@ -384,7 +387,7 @@ void OnTick() {
     if (should_buy && OrderSend(symbol, OP_BUY, lots_d, Ask, 2, 0, 0, "D", magic_d, 0) > 0) return;
 
     should_sell  = sell_count_d < max_orders_d
-                && buy_count_c == 0 && sell_count_c > 0
+                && sell_count_c > 0
                 && Bid > sell_nearest_price_c
                 && (sell_count_d == 0 ||
                     sell_nearest_price_d - Bid > gap * ma_hl ||
