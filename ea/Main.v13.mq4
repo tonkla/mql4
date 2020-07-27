@@ -168,7 +168,7 @@ void OnTick() {
   double ma_l2 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_LOW, 2);
   double ma_m0 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   double ma_m1 = iMA(symbol, tf, period, 0, MODE_LWMA, PRICE_MEDIAN, 1);
-  double ma_hl = ma_h0 - ma_l0;
+  double ma_hl = ma_h1 - ma_l1; // Use `h1 - l1` because I need a fixed range
   double close1 = iClose(symbol, tf, 1);
   double close2 = iClose(symbol, tf, 2);
   double high0 = iHigh(symbol, tf, 0);
@@ -338,6 +338,7 @@ void OnTick() {
     should_buy   = buy_count_b < max_orders_b
                 && buy_count_a > 0
                 && Ask < buy_nearest_price_a
+                && Ask < ma_m0
                 && (buy_count_b == 0 ||
                     Ask - buy_nearest_price_b > gap * ma_hl ||
                     buy_nearest_price_b - Ask > gap * ma_hl * 4);
@@ -347,6 +348,7 @@ void OnTick() {
     should_sell  = sell_count_b < max_orders_b
                 && sell_count_a > 0
                 && Bid > sell_nearest_price_a
+                && Bid > ma_m0
                 && (sell_count_b == 0 ||
                     sell_nearest_price_b - Bid > gap * ma_hl ||
                     Bid - sell_nearest_price_b > gap * ma_hl * 4);
