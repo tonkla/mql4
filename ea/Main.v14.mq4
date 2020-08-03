@@ -103,6 +103,7 @@ void OnTick() {
   double ma_m0_s = iMA(symbol, tf, period_s, 0, MODE_LWMA, PRICE_MEDIAN, 0);
   double ma_m1_s = iMA(symbol, tf, period_s, 0, MODE_LWMA, PRICE_MEDIAN, 1);
   double ma_hl = ma_h1_f - ma_l1_f; // Use `h1 - l1` because I need a fixed range
+  double open0 = iOpen(symbol, tf, 0);
   double close1 = iClose(symbol, tf, 1);
   double high1 = iHigh(symbol, tf, 1);
   double low1 = iLow(symbol, tf, 1);
@@ -159,14 +160,14 @@ void OnTick() {
   if (magic_a > 0) {
     should_buy   = buy_count_a < max_orders_a
                 && ma_m1_f < ma_m0_f && ma_m1_s < ma_m0_s
-                && Ask < close1
+                && Ask < close1 && Ask < open0
                 && (buy_count_a == 0 || MathAbs(Ask - buy_nearest_price_a) > gap_a * ma_hl);
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_a, Ask, 2, 0, 0, "A", magic_a, 0) > 0) return;
 
     should_sell  = sell_count_a < max_orders_a
                 && ma_m1_f > ma_m0_f && ma_m1_s > ma_m0_s
-                && Bid > close1
+                && Bid > close1 && Bid > open0
                 && (sell_count_a == 0 || MathAbs(sell_nearest_price_a - Bid) > gap_a * ma_hl);
 
     if (should_sell && OrderSend(symbol, OP_SELL, lots_a, Bid, 2, 0, 0, "A", magic_a, 0) > 0) return;
@@ -175,14 +176,14 @@ void OnTick() {
   if (magic_b > 0) {
     should_buy   = buy_count_b < max_orders_b
                 && buy_count_a > 0
-                && Ask < buy_nearest_price_a && Ask < close1 && Ask < high1 - d_50
+                && Ask < buy_nearest_price_a && Ask < high1 - d_50
                 && (buy_count_b == 0 || MathAbs(Ask - buy_nearest_price_b) > gap_b * ma_hl);
 
     if (should_buy && OrderSend(symbol, OP_BUY, lots_b, Ask, 2, 0, 0, "B", magic_b, 0) > 0) return;
 
     should_sell  = sell_count_b < max_orders_b
                 && sell_count_a > 0
-                && Bid > sell_nearest_price_a && Bid > close1 && Bid > low1 + d_50
+                && Bid > sell_nearest_price_a && Bid > low1 + d_50
                 && (sell_count_b == 0 || MathAbs(sell_nearest_price_b - Bid) > gap_b * ma_hl);
 
     if (should_sell && OrderSend(symbol, OP_SELL, lots_b, Bid, 2, 0, 0, "B", magic_b, 0) > 0) return;
